@@ -1,0 +1,1463 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Dynamic CSV Dashboard</title>
+<style>
+  :root {
+    --bg: #04060c;
+    --bg-2: #080d18;
+    --card: rgba(17, 24, 39, 0.66);
+    --stroke: rgba(148, 163, 184, 0.14);
+    --stroke-2: rgba(148, 163, 184, 0.26);
+    --text: #e9eefb;
+    --muted: #8fa0bd;
+    --faint: #63718d;
+    --indigo: #6d7cff;
+    --cyan: #22d3ee;
+    --green: #34d399;
+    --amber: #fbbf24;
+    --pink: #fb7185;
+    --violet: #a78bfa;
+    --radius: 16px;
+    --shadow: 0 18px 40px -22px rgba(0, 0, 0, 0.9);
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: radial-gradient(1200px 600px at 12% -10%, rgba(109, 124, 255, 0.18), transparent 60%),
+                radial-gradient(900px 500px at 92% 0%, rgba(34, 211, 238, 0.12), transparent 55%),
+                linear-gradient(180deg, var(--bg-2), var(--bg) 60%);
+    background-attachment: fixed;
+    color: var(--text);
+    font-family: "Segoe UI", "Inter", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
+    font-size: 14px;
+    line-height: 1.5;
+    min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 1480px; margin: 0 auto; padding: 0 22px 40px; }
+
+  /* header */
+  header.topbar {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 20px; padding: 20px 0 16px; flex-wrap: wrap;
+  }
+  .brand { display: flex; align-items: center; gap: 14px; }
+  .logo {
+    width: 46px; height: 46px; border-radius: 14px;
+    background: linear-gradient(135deg, var(--indigo), var(--cyan));
+    display: grid; place-items: center;
+    font-weight: 800; font-size: 17px; letter-spacing: 0.5px; color: #07101f;
+    box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.14), 0 12px 30px -10px rgba(109, 124, 255, 0.9);
+  }
+  .brand h1 { margin: 0; font-size: 19px; font-weight: 700; letter-spacing: -0.2px; }
+  .brand p { margin: 1px 0 0; font-size: 12px; color: var(--muted); letter-spacing: 0.2px; }
+  .top-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .pill {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 8px 14px; border-radius: 999px;
+    border: 1px solid var(--stroke); background: rgba(148, 163, 184, 0.06);
+    font-size: 12px; color: var(--muted); white-space: nowrap;
+  }
+  .pill strong { color: var(--text); font-weight: 600; }
+  .dot {
+    width: 7px; height: 7px; border-radius: 50%;
+    background: var(--green); box-shadow: 0 0 0 4px rgba(52, 211, 153, 0.14);
+    animation: pulse 2.4s infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { box-shadow: 0 0 0 3px rgba(52, 211, 153, 0.16); }
+    50% { box-shadow: 0 0 0 7px rgba(52, 211, 153, 0.03); }
+  }
+  .btn {
+    appearance: none; border: 1px solid transparent; border-radius: 10px;
+    padding: 9px 15px; font: inherit; font-size: 12.5px; font-weight: 600;
+    color: #07101f; background: linear-gradient(135deg, #a5b4ff, var(--cyan));
+    cursor: pointer; transition: transform 0.15s ease, box-shadow 0.2s ease, filter 0.2s ease;
+    display: inline-flex; align-items: center; gap: 7px;
+  }
+  .btn:hover { transform: translateY(-1px); filter: brightness(1.05); }
+  .btn:active { transform: translateY(0); }
+  .btn.ghost { background: rgba(148, 163, 184, 0.07); border-color: var(--stroke); color: var(--text); }
+  .btn.ghost:hover { background: rgba(148, 163, 184, 0.13); }
+  .btn.small { padding: 7px 12px; font-size: 12px; }
+  .btn:disabled { opacity: 0.45; cursor: not-allowed; transform: none; }
+
+  /* upload zone */
+  .upload-zone {
+    border: 2px dashed var(--stroke-2); border-radius: 18px;
+    padding: 44px 24px; text-align: center; margin: 18px 0;
+    background: linear-gradient(180deg, rgba(20, 28, 45, 0.55), rgba(10, 16, 28, 0.55));
+    backdrop-filter: blur(10px); transition: border-color 0.2s ease, background 0.2s ease;
+    cursor: pointer;
+  }
+  .upload-zone:hover, .upload-zone.drag {
+    border-color: var(--cyan); background: linear-gradient(180deg, rgba(34, 211, 238, 0.08), rgba(10, 16, 28, 0.55));
+  }
+  .upload-icon {
+    width: 64px; height: 64px; margin: 0 auto 14px; border-radius: 18px;
+    background: linear-gradient(135deg, rgba(109, 124, 255, 0.18), rgba(34, 211, 238, 0.18));
+    display: grid; place-items: center; color: var(--cyan);
+  }
+  .upload-zone h3 { margin: 0 0 6px; font-size: 17px; font-weight: 700; }
+  .upload-zone p { margin: 0; color: var(--muted); font-size: 13px; }
+  .upload-zone .or { margin: 14px 0 0; color: var(--faint); font-size: 11.5px; letter-spacing: 0.5px; text-transform: uppercase; }
+  .upload-actions { margin-top: 14px; display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+  .filename-pill {
+    display: inline-flex; align-items: center; gap: 8px; margin-top: 10px;
+    padding: 6px 12px; border-radius: 999px; background: rgba(52, 211, 153, 0.1);
+    border: 1px solid rgba(52, 211, 153, 0.2); color: #7ef0c0; font-size: 12px;
+  }
+
+  /* filterbar */
+  .filterbar {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 14px; flex-wrap: wrap; padding: 12px 14px;
+    border: 1px solid var(--stroke); border-radius: 14px;
+    background: linear-gradient(180deg, rgba(20, 28, 45, 0.72), rgba(10, 16, 28, 0.72));
+    backdrop-filter: blur(12px); box-shadow: var(--shadow); margin-bottom: 16px;
+  }
+  .filters { display: flex; align-items: flex-end; gap: 10px; flex-wrap: wrap; }
+  .field { display: flex; flex-direction: column; gap: 4px; }
+  .field span {
+    font-size: 10px; letter-spacing: 1.1px; text-transform: uppercase;
+    color: var(--faint); font-weight: 600;
+  }
+  select {
+    appearance: none; min-width: 128px; padding: 8px 30px 8px 11px;
+    border-radius: 9px; border: 1px solid var(--stroke);
+    background: rgba(9, 14, 24, 0.9)
+      url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'><path d='M2 4l4 4 4-4' fill='none' stroke='%238fa0bd' stroke-width='1.6' stroke-linecap='round'/></svg>")
+      no-repeat right 10px center;
+    color: var(--text); font: inherit; font-size: 12.5px; cursor: pointer; outline: none;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  }
+  select:hover { border-color: var(--stroke-2); }
+  select:focus-visible { border-color: var(--indigo); box-shadow: 0 0 0 3px rgba(109, 124, 255, 0.18); }
+  select option { background: #0d1422; color: var(--text); }
+  .live { display: inline-flex; align-items: center; gap: 8px; font-size: 12px; color: var(--muted); padding-left: 6px; }
+
+  /* kpi */
+  .kpis { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 14px; margin-bottom: 16px; }
+  .kpi {
+    position: relative; overflow: hidden; padding: 16px 16px 12px; border-radius: 14px;
+    border: 1px solid var(--stroke);
+    background: linear-gradient(180deg, rgba(22, 31, 49, 0.85), rgba(10, 15, 26, 0.9));
+    box-shadow: var(--shadow);
+  }
+  .kpi::after {
+    content: ""; position: absolute; inset: 0 0 auto 0; height: 2px;
+    background: linear-gradient(90deg, var(--indigo), transparent 85%); opacity: 0.85;
+  }
+  .kpi-label { font-size: 10.5px; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); font-weight: 600; }
+  .kpi-value {
+    margin-top: 8px; font-size: 24px; font-weight: 700; letter-spacing: -0.6px;
+    font-variant-numeric: tabular-nums; word-break: break-word;
+  }
+  .kpi-sub { font-size: 10.5px; color: var(--faint); margin-top: 6px; }
+
+  /* grid / cards */
+  .grid { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 16px; }
+  .card {
+    border-radius: var(--radius); border: 1px solid var(--stroke);
+    background: linear-gradient(180deg, rgba(19, 27, 44, 0.78), rgba(10, 15, 26, 0.88));
+    box-shadow: var(--shadow); padding: 16px 18px 14px; min-width: 0;
+  }
+  .span-12 { grid-column: span 12; }
+  .span-8 { grid-column: span 8; }
+  .span-6 { grid-column: span 6; }
+  .span-5 { grid-column: span 5; }
+  .span-4 { grid-column: span 4; }
+  .card-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 8px; flex-wrap: wrap; }
+  .card-title { font-size: 13.5px; font-weight: 650; letter-spacing: 0.1px; }
+  .card-sub { font-size: 11px; color: var(--faint); margin-top: 2px; }
+  .chart { width: 100%; min-height: 180px; }
+  .legend { display: flex; flex-wrap: wrap; gap: 10px 16px; margin-top: 10px; }
+  .legend-item { display: flex; align-items: center; gap: 7px; font-size: 11.5px; color: var(--muted); }
+  .legend-item b { color: var(--text); font-weight: 600; font-variant-numeric: tabular-nums; }
+  .swatch { width: 9px; height: 9px; border-radius: 3px; flex: none; }
+
+  .ctrl-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .ctrl-row label { font-size: 11px; color: var(--muted); display: inline-flex; align-items: center; gap: 6px; }
+  .ctrl-row select { min-width: 110px; }
+
+  /* table */
+  .table-wrap { overflow: auto; border-radius: 10px; border: 1px solid var(--stroke); max-height: 520px; }
+  table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+  thead th {
+    position: sticky; top: 0; z-index: 2; background: #111a2b; color: var(--muted);
+    font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.7px; font-weight: 600;
+    text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--stroke);
+    white-space: nowrap; cursor: pointer; user-select: none;
+  }
+  thead th:hover { color: var(--text); }
+  thead th.sorted::after { content: " ▾"; color: var(--indigo); }
+  thead th.sorted.asc::after { content: " ▴"; }
+  tbody td { padding: 9px 12px; border-bottom: 1px solid rgba(148, 163, 184, 0.07); white-space: nowrap; }
+  tbody tr:hover { background: rgba(109, 124, 255, 0.07); }
+  tbody tr:last-child td { border-bottom: 0; }
+  td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+  .tag {
+    display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 10.5px; font-weight: 600;
+    background: rgba(148, 163, 184, 0.1); color: var(--muted);
+  }
+  .tag.green { background: rgba(52, 211, 153, 0.12); color: #7ef0c0; }
+  .tag.cyan { background: rgba(34, 211, 238, 0.12); color: #8fe9f4; }
+  .tag.amber { background: rgba(251, 191, 36, 0.13); color: #ffd47a; }
+  .tag.violet { background: rgba(167, 139, 250, 0.13); color: #c8b9ff; }
+  .search {
+    width: 100%; padding: 9px 12px; border-radius: 9px; border: 1px solid var(--stroke);
+    background: rgba(9, 14, 24, 0.9); color: var(--text); font: inherit; font-size: 12.5px; outline: none;
+  }
+  .search:focus { border-color: var(--indigo); box-shadow: 0 0 0 3px rgba(109, 124, 255, 0.14); }
+  .search::placeholder { color: var(--faint); }
+  .toolbar { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; flex-wrap: wrap; }
+  .toolbar .search { flex: 1 1 220px; }
+  .pager { display: flex; align-items: center; gap: 8px; margin-top: 10px; justify-content: flex-end; flex-wrap: wrap; }
+  .pager .pg-info { color: var(--muted); font-size: 11.5px; margin-right: auto; }
+  .pager button {
+    appearance: none; border: 1px solid var(--stroke); background: rgba(148,163,184,0.06);
+    color: var(--text); padding: 6px 10px; border-radius: 8px; font: inherit; font-size: 12px; cursor: pointer;
+  }
+  .pager button:disabled { opacity: 0.4; cursor: not-allowed; }
+  .pager button.active { background: linear-gradient(135deg, var(--indigo), var(--cyan)); color: #06101f; border-color: transparent; font-weight: 600; }
+
+  .note {
+    margin-top: 12px; padding: 11px 13px; border-radius: 10px;
+    border: 1px dashed var(--stroke-2); background: rgba(34, 211, 238, 0.04);
+    font-size: 11.5px; color: var(--muted); line-height: 1.55;
+  }
+  .note b { color: var(--text); }
+  .empty { padding: 26px 10px; text-align: center; color: var(--faint); font-size: 12px; }
+  .hidden { display: none !important; }
+
+  /* tooltip */
+  .tooltip {
+    position: fixed; z-index: 99; pointer-events: none; opacity: 0;
+    transform: translateY(4px); transition: opacity 0.12s ease, transform 0.12s ease;
+    max-width: 280px; padding: 9px 11px; border-radius: 9px;
+    border: 1px solid var(--stroke-2); background: rgba(9, 14, 24, 0.97);
+    box-shadow: 0 16px 32px -14px #000; font-size: 11.5px; color: var(--text); line-height: 1.5;
+  }
+  .tooltip.on { opacity: 1; transform: translateY(0); }
+  .tooltip .tt-title { font-weight: 700; font-size: 11.5px; margin-bottom: 4px; color: #fff; }
+  .tooltip .tt-row { display: flex; align-items: center; gap: 7px; }
+  .tooltip .tt-row span:last-child { margin-left: auto; padding-left: 12px; color: #fff; font-variant-numeric: tabular-nums; }
+  .tooltip .tt-name { color: var(--muted); }
+
+  footer {
+    margin-top: 26px; padding-top: 16px; border-top: 1px solid var(--stroke);
+    display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+    font-size: 11px; color: var(--faint);
+  }
+
+  /* schema chips */
+  .schema-list { display: flex; flex-wrap: wrap; gap: 8px; }
+  .schema-chip {
+    display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px;
+    border-radius: 8px; border: 1px solid var(--stroke); background: rgba(148,163,184,0.05);
+    font-size: 11.5px;
+  }
+  .schema-chip .col { color: var(--text); font-weight: 600; }
+  .schema-chip .typ { font-size: 9.5px; padding: 2px 6px; border-radius: 5px; text-transform: uppercase; letter-spacing: 0.6px; font-weight: 700; }
+  .typ.date { background: rgba(34,211,238,0.13); color: #8fe9f4; }
+  .typ.number { background: rgba(52,211,153,0.13); color: #7ef0c0; }
+  .typ.category { background: rgba(251,191,36,0.13); color: #ffd47a; }
+  .typ.id { background: rgba(167,139,250,0.13); color: #c8b9ff; }
+  .typ.text { background: rgba(148,163,184,0.13); color: #b3bfd6; }
+
+  @media (max-width: 1180px) {
+    .kpis { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .span-8, .span-6, .span-5, .span-4 { grid-column: span 12; }
+  }
+  @media (max-width: 720px) {
+    .wrap { padding: 0 14px 30px; }
+    .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .brand h1 { font-size: 16px; }
+    .kpi-value { font-size: 20px; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="topbar">
+    <div class="brand">
+      <div class="logo">CSV</div>
+      <div>
+        <h1>Dynamic CSV Dashboard</h1>
+        <p>Upload any CSV &middot; auto-generated BI dashboard &middot; runs fully offline</p>
+      </div>
+    </div>
+    <div class="top-actions">
+      <span class="pill" id="statusPill"><span class="dot"></span> no file loaded</span>
+      <button class="btn ghost small" id="loadSampleBtn">Try sample data</button>
+      <button class="btn small" id="uploadBtn">Upload CSV</button>
+      <button class="btn ghost small" id="exportBtn" disabled>Download filtered (CSV)</button>
+    </div>
+  </header>
+
+  <input type="file" id="fileInput" accept=".csv,text/csv,text/plain" hidden />
+
+  <div class="upload-zone" id="uploadZone">
+    <div class="upload-icon">
+      <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+        <polyline points="17 8 12 3 7 8"/>
+        <line x1="12" y1="3" x2="12" y2="15"/>
+      </svg>
+    </div>
+    <h3>Upload a CSV file to generate your dashboard</h3>
+    <p>Drag &amp; drop a CSV here, or click to browse. The dashboard auto-detects dates, numbers, categories and IDs.</p>
+    <div class="or">— or —</div>
+    <div class="upload-actions">
+      <button class="btn" id="browseBtn">Choose file</button>
+      <button class="btn ghost" id="loadSampleBtn2">Load sample Superstore data</button>
+    </div>
+    <div id="filePillWrap"></div>
+  </div>
+
+  <div id="dashboard" class="hidden">
+    <div class="filterbar">
+      <div class="filters" id="filters"></div>
+      <div class="live"><span id="rowCount">—</span></div>
+    </div>
+
+    <div class="kpis" id="kpis"></div>
+
+    <div class="grid" style="margin-bottom:16px">
+      <div class="card span-8">
+        <div class="card-head">
+          <div>
+            <div class="card-title">Trend over time</div>
+            <div class="card-sub" id="trendSub">monthly totals</div>
+          </div>
+          <div class="ctrl-row">
+            <label>Date
+              <select id="trendDate"></select>
+            </label>
+            <label>Value
+              <select id="trendVal"></select>
+            </label>
+            <label>Split by
+              <select id="trendSplit"></select>
+            </label>
+          </div>
+        </div>
+        <div class="chart" id="trendChart"></div>
+        <div class="legend" id="trendLegend"></div>
+      </div>
+
+      <div class="card span-4">
+        <div class="card-head">
+          <div>
+            <div class="card-title">Share breakdown</div>
+            <div class="card-sub" id="donutSub">share of selected measure</div>
+          </div>
+          <div class="ctrl-row">
+            <label>By
+              <select id="donutCol"></select>
+            </label>
+          </div>
+        </div>
+        <div id="donut"></div>
+      </div>
+
+      <div class="card span-6">
+        <div class="card-head">
+          <div>
+            <div class="card-title">Category comparison</div>
+            <div class="card-sub" id="barsSub">total by category</div>
+          </div>
+          <div class="ctrl-row">
+            <label>By
+              <select id="barCol"></select>
+            </label>
+            <label>Measure
+              <select id="barVal"></select>
+            </label>
+          </div>
+        </div>
+        <div class="chart" id="barChart"></div>
+      </div>
+
+      <div class="card span-6">
+        <div class="card-head">
+          <div>
+            <div class="card-title">Distribution</div>
+            <div class="card-sub" id="histSub">histogram</div>
+          </div>
+          <div class="ctrl-row">
+            <label>Column
+              <select id="histCol"></select>
+            </label>
+          </div>
+        </div>
+        <div class="chart" id="histChart"></div>
+      </div>
+
+      <div class="card span-6">
+        <div class="card-head">
+          <div>
+            <div class="card-title">Correlation</div>
+            <div class="card-sub" id="scatSub">scatter of two measures</div>
+          </div>
+          <div class="ctrl-row">
+            <label>X
+              <select id="scatX"></select>
+            </label>
+            <label>Y
+              <select id="scatY"></select>
+            </label>
+            <label>Color
+              <select id="scatC"></select>
+            </label>
+          </div>
+        </div>
+        <div class="chart" id="scatChart"></div>
+      </div>
+
+      <div class="card span-6">
+        <div class="card-head">
+          <div>
+            <div class="card-title">Column schema</div>
+            <div class="card-sub" id="schemaSub">detected types</div>
+          </div>
+        </div>
+        <div class="schema-list" id="schemaList"></div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:4px">
+      <div class="card-head">
+        <div>
+          <div class="card-title">Records</div>
+          <div class="card-sub" id="dataCount">filtered rows</div>
+        </div>
+      </div>
+      <div class="toolbar">
+        <input class="search" id="dataSearch" type="search" placeholder="Search across all columns..." />
+        <select id="pageSize" style="min-width:90px">
+          <option value="10">10 / page</option>
+          <option value="25" selected>25 / page</option>
+          <option value="50">50 / page</option>
+          <option value="100">100 / page</option>
+        </select>
+      </div>
+      <div class="table-wrap" style="max-height:560px">
+        <table>
+          <thead id="dataHead"></thead>
+          <tbody id="dataBody"></tbody>
+        </table>
+      </div>
+      <div class="pager" id="dataPager"></div>
+    </div>
+  </div>
+
+  <footer>
+    <span>Dynamic CSV Dashboard &middot; vanilla JavaScript, no dependencies, fully offline</span>
+    <span id="footStamp"></span>
+  </footer>
+</div>
+
+<div class="tooltip" id="tip"></div>
+
+<script>
+var SAMPLE_CSV = (function(){
+  var b64 = "Ik9yZGVyIERhdGUiLCJTaGlwIE1vZGUiLCJTZWdtZW50IiwiU3RhdGUiLCJSZWdpb24iLCJDYXRl" +
+    "Z29yeSIsIlN1Yi1DYXRlZ29yeSIsIlByb2R1Y3QgTmFtZSIsIlNhbGVzIiwiUXVhbnRpdHkiLCJE" +
+    "aXNjb3VudCIsIlByb2ZpdCIKIjIwMTYtMTEtMDgiLCJTZWNvbmQgQ2xhc3MiLCJDb25zdW1lciIs" +
+    "IktlbnR1Y2t5IiwiU291dGgiLCJGdXJuaXR1cmUiLCJCb29rY2FzZXMiLCJCdXNoIFNvbWVyc2V0" +
+    "IENvbGxlY3Rpb24gQm9va2Nhc2UiLCIyNjEuOTYiLCIyIiwiMC4wIiwiNDEuOTEzNiIKIjIwMTYt" +
+    "MTEtMDgiLCJTZWNvbmQgQ2xhc3MiLCJDb25zdW1lciIsIktlbnR1Y2t5IiwiU291dGgiLCJGdXJu" +
+    "aXR1cmUiLCJDaGFpcnMiLCJIb24gRGVsdXhlIEZhYnJpYyBVcGhvbHN0ZXJlZCBTdGFja2luZ+KA" +
+    "piIsIjczMS45NCIsIjMiLCIwLjAiLCIyMTkuNTgyIgoiMjAxNi0wNi0xMiIsIlNlY29uZCBDbGFz" +
+    "cyIsIkNvcnBvcmF0ZSIsIkNhbGlmb3JuaWEiLCJXZXN0IiwiT2ZmaWNlIFN1cHBsaWVzIiwiTGFi" +
+    "ZWxzIiwiU2VsZi1BZGhlc2l2ZSBBZGRyZXNzIExhYmVscyBmb3IgVHlwZXfigKYiLCIxNC42MiIs" +
+    "IjIiLCIwLjAiLCI2Ljg3MTQiCiIyMDE1LTEwLTExIiwiU3RhbmRhcmQgQ2xhc3MiLCJDb25zdW1l" +
+    "ciIsIkZsb3JpZGEiLCJTb3V0aCIsIkZ1cm5pdHVyZSIsIlRhYmxlcyIsIkJyZXRmb3JkIENSNDUw" +
+    "MCBTZXJpZXMgU2xpbSBSZWN0YW5ndWxh4oCmIiwiOTU3LjU3NzUiLCI1IiwiMC40NSIsIi0zODMu" +
+    "MDMxIgoiMjAxNS0xMC0xMSIsIlN0YW5kYXJkIENsYXNzIiwiQ29uc3VtZXIiLCJGbG9yaWRhIiwi" +
+    "U291dGgiLCJPZmZpY2UgU3VwcGxpZXMiLCJTdG9yYWdlIiwiRWxkb24gRm9sZCAnTiBSb2xsIENh" +
+    "cnQgU3lzdGVtIiwiMjIuMzY4IiwiMiIsIjAuMiIsIjIuNTE2NCIKIjIwMTQtMDYtMDkiLCJTdGFu" +
+    "ZGFyZCBDbGFzcyIsIkNvbnN1bWVyIiwiQ2FsaWZvcm5pYSIsIldlc3QiLCJGdXJuaXR1cmUiLCJG" +
+    "dXJuaXNoaW5ncyIsIkVsZG9uIEV4cHJlc3Npb25zIFdvb2QgYW5kIFBsYXN0aWMgRGVz4oCmIiwi" +
+    "NDguODYiLCI3IiwiMC4wIiwiMTQuMTY5NCIKIjIwMTQtMDYtMDkiLCJTdGFuZGFyZCBDbGFzcyIs" +
+    "IkNvbnN1bWVyIiwiQ2FsaWZvcm5pYSIsIldlc3QiLCJPZmZpY2UgU3VwcGxpZXMiLCJBcnQiLCJO" +
+    "ZXdlbGwgMzIyIiwiNy4yOCIsIjQiLCIwLjAiLCIxLjk2NTYiCiIyMDE0LTA2LTA5IiwiU3RhbmRh" +
+    "cmQgQ2xhc3MiLCJDb25zdW1lciIsIkNhbGlmb3JuaWEiLCJXZXN0IiwiVGVjaG5vbG9neSIsIlBo" +
+    "b25lcyIsIk1pdGVsIDUzMjAgSVAgUGhvbmUgVm9JUCBwaG9uZSIsIjkwNy4xNTIiLCI2IiwiMC4y" +
+    "IiwiOTAuNzE1MiIKIjIwMTQtMDYtMDkiLCJTdGFuZGFyZCBDbGFzcyIsIkNvbnN1bWVyIiwiQ2Fs" +
+    "aWZvcm5pYSIsIldlc3QiLCJPZmZpY2UgU3VwcGxpZXMiLCJCaW5kZXJzIiwiRFhMIEFuZ2xlLVZp" +
+    "ZXcgQmluZGVycyB3aXRoIExvY2tpbmcgUmnigKYiLCIxOC41MDQiLCIzIiwiMC4yIiwiNS43ODI1" +
+    "IgoiMjAxNC0wNi0wOSIsIlN0YW5kYXJkIENsYXNzIiwiQ29uc3VtZXIiLCJDYWxpZm9ybmlhIiwi" +
+    "V2VzdCIsIk9mZmljZSBTdXBwbGllcyIsIkFwcGxpYW5jZXMiLCJCZWxraW4gRjVDMjA2VlRFTCA2" +
+    "IE91dGxldCBTdXJnZSIsIjExNC45IiwiNSIsIjAuMCIsIjM0LjQ3IgoiMjAxNC0wNi0wOSIsIlN0" +
+    "YW5kYXJkIENsYXNzIiwiQ29uc3VtZXIiLCJDYWxpZm9ybmlhIiwiV2VzdCIsIkZ1cm5pdHVyZSIs" +
+    "IlRhYmxlcyIsIkNocm9tY3JhZnQgUmVjdGFuZ3VsYXIgQ29uZmVyZW5jZSBUYWJsZXMiLCIxNzA2" +
+    "LjE4NCIsIjkiLCIwLjIiLCI4NS4zMDkyIgoiMjAxNC0wNi0wOSIsIlN0YW5kYXJkIENsYXNzIiwi" +
+    "Q29uc3VtZXIiLCJDYWxpZm9ybmlhIiwiV2VzdCIsIlRlY2hub2xvZ3kiLCJQaG9uZXMiLCJLb25m" +
+    "dGVsIDI1MCBDb25mZXJlbmNlwqBwaG9uZcKgLSBDaGFyY29h4oCmIiwiOTExLjQyNCIsIjQiLCIw" +
+    "LjIiLCI2OC4zNTY4IgoiMjAxNy0wNC0xNSIsIlN0YW5kYXJkIENsYXNzIiwiQ29uc3VtZXIiLCJO" +
+    "b3J0aCBDYXJvbGluYSIsIlNvdXRoIiwiT2ZmaWNlIFN1cHBsaWVzIiwiUGFwZXIiLCJYZXJveCAx" +
+    "OTY3IiwiMTUuNTUyIiwiMyIsIjAuMiIsIjUuNDQzMiIKIjIwMTYtMTItMDUiLCJTdGFuZGFyZCBD" +
+    "bGFzcyIsIkNvbnN1bWVyIiwiV2FzaGluZ3RvbiIsIldlc3QiLCJPZmZpY2UgU3VwcGxpZXMiLCJC" +
+    "aW5kZXJzIiwiRmVsbG93ZXMgUEIyMDAgUGxhc3RpYyBDb21iIEJpbmRpbmcgTWHigKYiLCI0MDcu" +
+    "OTc2IiwiMyIsIjAuMiIsIjEzMi41OTIyIgoiMjAxNS0xMS0yMiIsIlN0YW5kYXJkIENsYXNzIiwi" +
+    "SG9tZSBPZmZpY2UiLCJUZXhhcyIsIkNlbnRyYWwiLCJPZmZpY2UgU3VwcGxpZXMiLCJBcHBsaWFu" +
+    "Y2VzIiwiSG9sbWVzIFJlcGxhY2VtZW50IEZpbHRlciBmb3IgSEVQQSBBaXLigKYiLCI2OC44MSIs" +
+    "IjUiLCIwLjgiLCItMTIzLjg1OCIKIjIwMTUtMTEtMjIiLCJTdGFuZGFyZCBDbGFzcyIsIkhvbWUg" +
+    "T2ZmaWNlIiwiVGV4YXMiLCJDZW50cmFsIiwiT2ZmaWNlIFN1cHBsaWVzIiwiQmluZGVycyIsIlN0" +
+    "b3JleCBEdXJhVGVjaCBSZWN5Y2xlZCBQbGFzdGljIEZyb3N04oCmIiwiMi41NDQiLCIzIiwiMC44" +
+    "IiwiLTMuODE2IgoiMjAxNC0xMS0xMSIsIlN0YW5kYXJkIENsYXNzIiwiQ29uc3VtZXIiLCJXaXNj" +
+    "b25zaW4iLCJDZW50cmFsIiwiT2ZmaWNlIFN1cHBsaWVzIiwiU3RvcmFnZSIsIlN0dXItRC1TdG9y" +
+    "IFNoZWx2aW5nLCBWZXJ0aWNhbCA1LVNoZWxm4oCmIiwiNjY1Ljg4IiwiNiIsIjAuMCIsIjEzLjMx" +
+    "NzYiCiIyMDE0LTA1LTEzIiwiU2Vjb25kIENsYXNzIiwiQ29uc3VtZXIiLCJVdGFoIiwiV2VzdCIs" +
+    "Ik9mZmljZSBTdXBwbGllcyIsIlN0b3JhZ2UiLCJGZWxsb3dlcyBTdXBlciBTdG9yL0RyYXdlciIs" +
+    "IjU1LjUiLCIyIiwiMC4wIiwiOS45OSIKIjIwMTQtMDgtMjciLCJTZWNvbmQgQ2xhc3MiLCJDb25z" +
+    "dW1lciIsIkNhbGlmb3JuaWEiLCJXZXN0IiwiT2ZmaWNlIFN1cHBsaWVzIiwiQXJ0IiwiTmV3ZWxs" +
+    "IDM0MSIsIjguNTYiLCIyIiwiMC4wIiwiMi40ODI0IgoiMjAxNC0wOC0yNyIsIlNlY29uZCBDbGFz" +
+    "cyIsIkNvbnN1bWVyIiwiQ2FsaWZvcm5pYSIsIldlc3QiLCJUZWNobm9sb2d5IiwiUGhvbmVzIiwi" +
+    "Q2lzY28gU1BBIDUwMUcgSVAgUGhvbmUiLCIyMTMuNDgiLCIzIiwiMC4yIiwiMTYuMDExIgoiMjAx" +
+    "NC0wOC0yNyIsIlNlY29uZCBDbGFzcyIsIkNvbnN1bWVyIiwiQ2FsaWZvcm5pYSIsIldlc3QiLCJP" +
+    "ZmZpY2UgU3VwcGxpZXMiLCJCaW5kZXJzIiwiV2lsc29uIEpvbmVzIEhhbmdpbmcgVmlldyBCaW5k" +
+    "ZXIsIFdoaXTigKYiLCIyMi43MiIsIjQiLCIwLjIiLCI3LjM4NCIKIjIwMTYtMTItMDkiLCJTdGFu" +
+    "ZGFyZCBDbGFzcyIsIkNvcnBvcmF0ZSIsIk5lYnJhc2thIiwiQ2VudHJhbCIsIk9mZmljZSBTdXBw" +
+    "bGllcyIsIkFydCIsIk5ld2VsbCAzMTgiLCIxOS40NiIsIjciLCIwLjAiLCI1LjA1OTYiCiIyMDE2" +
+    "LTEyLTA5IiwiU3RhbmRhcmQgQ2xhc3MiLCJDb3Jwb3JhdGUiLCJOZWJyYXNrYSIsIkNlbnRyYWwi" +
+    "LCJPZmZpY2UgU3VwcGxpZXMiLCJBcHBsaWFuY2VzIiwiQWNjbyBTaXgtT3V0bGV0IFBvd2VyIFN0" +
+    "cmlwLCA0JyBDb3JkIEzigKYiLCI2MC4zNCIsIjciLCIwLjAiLCIxNS42ODg0IgoiMjAxNy0wNy0x" +
+    "NiIsIlNlY29uZCBDbGFzcyIsIkNvbnN1bWVyIiwiUGVubnN5bHZhbmlhIiwiRWFzdCIsIkZ1cm5p" +
+    "dHVyZSIsIkNoYWlycyIsIkdsb2JhbCBEZWx1eGUgU3RhY2tpbmcgQ2hhaXIsIEdyYXkiLCI3MS4z" +
+    "NzIiLCIyIiwiMC4zIiwiLTEuMDE5NiIKIjIwMTUtMDktMjUiLCJTdGFuZGFyZCBDbGFzcyIsIkNv" +
+    "bnN1bWVyIiwiVXRhaCIsIldlc3QiLCJGdXJuaXR1cmUiLCJUYWJsZXMiLCJCcmV0Zm9yZCBDUjQ1" +
+    "MDAgU2VyaWVzIFNsaW0gUmVjdGFuZ3VsYeKApiIsIjEwNDQuNjMiLCIzIiwiMC4wIiwiMjQwLjI2" +
+    "NDkiCiIyMDE2LTAxLTE2IiwiU2Vjb25kIENsYXNzIiwiQ29uc3VtZXIiLCJDYWxpZm9ybmlhIiwi" +
+    "V2VzdCIsIk9mZmljZSBTdXBwbGllcyIsIkJpbmRlcnMiLCJXaWxzb24gSm9uZXMgQWN0aXZlIFVz" +
+    "ZSBCaW5kZXJzIiwiMTEuNjQ4IiwiMiIsIjAuMiIsIjQuMjIyNCIKIjIwMTYtMDEtMTYiLCJTZWNv" +
+    "bmQgQ2xhc3MiLCJDb25zdW1lciIsIkNhbGlmb3JuaWEiLCJXZXN0IiwiVGVjaG5vbG9neSIsIkFj" +
+    "Y2Vzc29yaWVzIiwiSW1hdGlvbsKgOEdCIE1pbmkgVHJhdmVsRHJpdmUgVVNCIDIuMMKgRuKApiIs" +
+    "IjkwLjU3IiwiMyIsIjAuMCIsIjExLjc3NDEiCiIyMDE1LTA5LTE3IiwiU3RhbmRhcmQgQ2xhc3Mi" +
+    "LCJDb25zdW1lciIsIlBlbm5zeWx2YW5pYSIsIkVhc3QiLCJGdXJuaXR1cmUiLCJCb29rY2FzZXMi" +
+    "LCJSaXZlcnNpZGUgUGFsYWlzIFJveWFsIExhd3llcnMgQm9va2Nhc+KApiIsIjMwODMuNDMiLCI3" +
+    "IiwiMC41IiwiLTE2NjUuMDUyMiIKIjIwMTUtMDktMTciLCJTdGFuZGFyZCBDbGFzcyIsIkNvbnN1" +
+    "bWVyIiwiUGVubnN5bHZhbmlhIiwiRWFzdCIsIk9mZmljZSBTdXBwbGllcyIsIkJpbmRlcnMiLCJB" +
+    "dmVyeSBSZWN5Y2xlZCBGbGV4aS1WaWV3IENvdmVycyBmb3IgQuKApiIsIjkuNjE4IiwiMiIsIjAu" +
+    "NyIsIi03LjA1MzIiCiIyMDE1LTA5LTE3IiwiU3RhbmRhcmQgQ2xhc3MiLCJDb25zdW1lciIsIlBl" +
+    "bm5zeWx2YW5pYSIsIkVhc3QiLCJGdXJuaXR1cmUiLCJGdXJuaXNoaW5ncyIsIkhvd2FyZCBNaWxs" +
+    "ZXIgMTMtMy80IiIgRGlhbWV0ZXIgQnJ1c2hlZOKApiIsIjEyNC4yIiwiMyIsIjAuMiIsIjE1LjUy" +
+    "NSIKIjIwMTUtMDktMTciLCJTdGFuZGFyZCBDbGFzcyIsIkNvbnN1bWVyIiwiUGVubnN5bHZhbmlh" +
+    "IiwiRWFzdCIsIk9mZmljZSBTdXBwbGllcyIsIkVudmVsb3BlcyIsIlBvbHkgU3RyaW5nIFRpZSBF" +
+    "bnZlbG9wZXMiLCIzLjI2NCIsIjIiLCIwLjIiLCIxLjEwMTYiCiIyMDE1LTA5LTE3IiwiU3RhbmRh" +
+    "cmQgQ2xhc3MiLCJDb25zdW1lciIsIlBlbm5zeWx2YW5pYSIsIkVhc3QiLCJPZmZpY2UgU3VwcGxp" +
+    "ZXMiLCJBcnQiLCJCT1NUT04gTW9kZWwgMTgwMCBFbGVjdHJpYyBQZW5jaWwgU2hhcuKApiIsIjg2" +
+    "LjMwNCIsIjYiLCIwLjIiLCI5LjcwOTIiCiIyMDE1LTA5LTE3IiwiU3RhbmRhcmQgQ2xhc3MiLCJD" +
+    "b25zdW1lciIsIlBlbm5zeWx2YW5pYSIsIkVhc3QiLCJPZmZpY2UgU3VwcGxpZXMiLCJCaW5kZXJz" +
+    "IiwiQWNjbyBQcmVzc2JvYXJkIENvdmVycyB3aXRoIFN0b3JhZ2UgSG/igKYiLCI2Ljg1OCIsIjYi" +
+    "LCIwLjciLCItNS43MTUiCiIyMDE1LTA5LTE3IiwiU3RhbmRhcmQgQ2xhc3MiLCJDb25zdW1lciIs" +
+    "IlBlbm5zeWx2YW5pYSIsIkVhc3QiLCJPZmZpY2UgU3VwcGxpZXMiLCJBcnQiLCJMdW1iZXIgQ3Jh" +
+    "eW9ucyIsIjE1Ljc2IiwiMiIsIjAuMiIsIjMuNTQ2IgoiMjAxNy0xMC0xOSIsIlNlY29uZCBDbGFz" +
+    "cyIsIkhvbWUgT2ZmaWNlIiwiVGV4YXMiLCJDZW50cmFsIiwiT2ZmaWNlIFN1cHBsaWVzIiwiUGFw" +
+    "ZXIiLCJFYXN5LXN0YXBsZSBwYXBlciIsIjI5LjQ3MiIsIjMiLCIwLjIiLCI5Ljk0NjgiCiIyMDE2" +
+    "LTEyLTA4IiwiRmlyc3QgQ2xhc3MiLCJDb3Jwb3JhdGUiLCJUZXhhcyIsIkNlbnRyYWwiLCJUZWNo" +
+    "bm9sb2d5IiwiUGhvbmVzIiwiR0UgMzA1MjRFRTQiLCIxMDk3LjU0NCIsIjciLCIwLjIiLCIxMjMu" +
+    "NDczNyIKIjIwMTYtMTItMDgiLCJGaXJzdCBDbGFzcyIsIkNvcnBvcmF0ZSIsIlRleGFzIiwiQ2Vu" +
+    "dHJhbCIsIkZ1cm5pdHVyZSIsIkZ1cm5pc2hpbmdzIiwiRWxlY3RyaXggQXJjaGl0ZWN0J3MgQ2xh" +
+    "bXAtT24gU3dpbmcgQXLigKYiLCIxOTAuOTIiLCI1IiwiMC42IiwiLTE0Ny45NjMiCiIyMDE1LTEy" +
+    "LTI3IiwiU3RhbmRhcmQgQ2xhc3MiLCJIb21lIE9mZmljZSIsIlRleGFzIiwiQ2VudHJhbCIsIk9m" +
+    "ZmljZSBTdXBwbGllcyIsIkVudmVsb3BlcyIsIiMxMC00IDEvOCIiIHggOSAxLzIiIiBQcmVtaXVt" +
+    "IERpYWdvbmFsIFPigKYiLCIxMTMuMzI4IiwiOSIsIjAuMiIsIjM1LjQxNSIKIjIwMTUtMTItMjci" +
+    "LCJTdGFuZGFyZCBDbGFzcyIsIkhvbWUgT2ZmaWNlIiwiVGV4YXMiLCJDZW50cmFsIiwiRnVybml0" +
+    "dXJlIiwiQm9va2Nhc2VzIiwiQXRsYW50aWMgTWV0YWxzIE1vYmlsZSAzLVNoZWxmIEJvb2tjYXPi" +
+    "gKYiLCI1MzIuMzk5MiIsIjMiLCIwLjMyIiwiLTQ2Ljk3NjQiCiIyMDE1LTEyLTI3IiwiU3RhbmRh" +
+    "cmQgQ2xhc3MiLCJIb21lIE9mZmljZSIsIlRleGFzIiwiQ2VudHJhbCIsIkZ1cm5pdHVyZSIsIkNo" +
+    "YWlycyIsIkdsb2JhbCBGYWJyaWMgTWFuYWdlcidzIENoYWlyLCBEYXJrIEdyYXkiLCIyMTIuMDU4" +
+    "IiwiMyIsIjAuMyIsIi0xNS4xNDciCiIyMDE1LTEyLTI3IiwiU3RhbmRhcmQgQ2xhc3MiLCJIb21l" +
+    "IE9mZmljZSIsIlRleGFzIiwiQ2VudHJhbCIsIlRlY2hub2xvZ3kiLCJQaG9uZXMiLCJQbGFudHJv" +
+    "bmljcyBITDEwIEhhbmRzZXQgTGlmdGVyIiwiMzcxLjE2OCIsIjQiLCIwLjIiLCI0MS43NTY0Igoi" +
+    "MjAxNy0wOS0xMCIsIlN0YW5kYXJkIENsYXNzIiwiQ29ycG9yYXRlIiwiSWxsaW5vaXMiLCJDZW50" +
+    "cmFsIiwiVGVjaG5vbG9neSIsIlBob25lcyIsIlBhbmFzb25pYyBLeC1UUzU1MCIsIjE0Ny4xNjgi" +
+    "LCI0IiwiMC4yIiwiMTYuNTU2NCIKIjIwMTYtMDctMTciLCJTdGFuZGFyZCBDbGFzcyIsIkNvcnBv" +
+    "cmF0ZSIsIkNhbGlmb3JuaWEiLCJXZXN0IiwiT2ZmaWNlIFN1cHBsaWVzIiwiU3RvcmFnZSIsIkVs" +
+    "ZG9uIEJhc2UgZm9yIHN0YWNrYWJsZSBzdG9yYWdlIHNoZWxm4oCmIiwiNzcuODgiLCIyIiwiMC4w" +
+    "IiwiMy44OTQiCiIyMDE3LTA5LTE5IiwiU3RhbmRhcmQgQ2xhc3MiLCJDb3Jwb3JhdGUiLCJGbG9y" +
+    "aWRhIiwiU291dGgiLCJPZmZpY2UgU3VwcGxpZXMiLCJTdG9yYWdlIiwiQWR2YW50dXMgMTAtRHJh" +
+    "d2VyIFBvcnRhYmxlIE9yZ2FuaXplcizigKYiLCI5NS42MTYiLCIyIiwiMC4yIiwiOS41NjE2Igoi" +
+    "MjAxNi0wMy0xMSIsIkZpcnN0IENsYXNzIiwiQ29ycG9yYXRlIiwiTWlubmVzb3RhIiwiQ2VudHJh" +
+    "bCIsIlRlY2hub2xvZ3kiLCJBY2Nlc3NvcmllcyIsIlZlcmJhdGltIDI1IEdCIDZ4IEJsdS1yYXkg" +
+    "U2luZ2xlIExheWVy4oCmIiwiNDUuOTgiLCIyIiwiMC4wIiwiMTkuNzcxNCIKIjIwMTYtMDMtMTEi" +
+    "LCJGaXJzdCBDbGFzcyIsIkNvcnBvcmF0ZSIsIk1pbm5lc290YSIsIkNlbnRyYWwiLCJPZmZpY2Ug" +
+    "U3VwcGxpZXMiLCJCaW5kZXJzIiwiV2lsc29uIEpvbmVzIExlYXRoZXItTGlrZSBCaW5kZXJzIHdp" +
+    "dGjigKYiLCIxNy40NiIsIjIiLCIwLjAiLCI4LjIwNjIiCiIyMDE0LTEwLTIwIiwiU2Vjb25kIENs" +
+    "YXNzIiwiQ29uc3VtZXIiLCJNaWNoaWdhbiIsIkNlbnRyYWwiLCJPZmZpY2UgU3VwcGxpZXMiLCJT" +
+    "dG9yYWdlIiwiR291bGQgUGxhc3RpY3MgOS1Qb2NrZXQgUGFuZWwgQmluLCAxOC3igKYiLCIyMTEu" +
+    "OTYiLCI0IiwiMC4wIiwiOC40Nzg0IgoiMjAxNi0wNi0yMCIsIlN0YW5kYXJkIENsYXNzIiwiQ29u" +
+    "c3VtZXIiLCJEZWxhd2FyZSIsIkVhc3QiLCJUZWNobm9sb2d5IiwiQWNjZXNzb3JpZXMiLCJJbWF0" +
+    "aW9uwqA4Z2IgTWljcm8gVHJhdmVsZHJpdmUgVXNiIDIuMMKg4oCmIiwiNDUuMCIsIjMiLCIwLjAi" +
+    "LCI0Ljk1IgoiMjAxNi0wNi0yMCIsIlN0YW5kYXJkIENsYXNzIiwiQ29uc3VtZXIiLCJEZWxhd2Fy" +
+    "ZSIsIkVhc3QiLCJUZWNobm9sb2d5IiwiUGhvbmVzIiwiTEYgRWxpdGUgM0QgRGF6emxlIERlc2ln" +
+    "bmVyIEhhcmQgQ2FzZSDigKYiLCIyMS44IiwiMiIsIjAuMCIsIjYuMTA0IgoiMjAxNS0wNC0xOCIs" +
+    "IlN0YW5kYXJkIENsYXNzIiwiQ29uc3VtZXIiLCJJbmRpYW5hIiwiQ2VudHJhbCIsIk9mZmljZSBT" +
+    "dXBwbGllcyIsIkJpbmRlcnMiLCJDLUxpbmUgUGVlbCAmIFN0aWNrIEFkZC1PbiBGaWxpbmcgUG9j" +
+    "a+KApiIsIjM4LjIyIiwiNiIsIjAuMCIsIjE3Ljk2MzQiCiIyMDE1LTA0LTE4IiwiU3RhbmRhcmQg" +
+    "Q2xhc3MiLCJDb25zdW1lciIsIkluZGlhbmEiLCJDZW50cmFsIiwiT2ZmaWNlIFN1cHBsaWVzIiwi" +
+    "TGFiZWxzIiwiQXZlcnkgNDg1IiwiNzUuMTgiLCI2IiwiMC4wIiwiMzUuMzM0NiIKIjIwMTUtMDQt" +
+    "MTgiLCJTdGFuZGFyZCBDbGFzcyIsIkNvbnN1bWVyIiwiSW5kaWFuYSIsIkNlbnRyYWwiLCJGdXJu" +
+    "aXR1cmUiLCJGdXJuaXNoaW5ncyIsIkxvbmdlci1MaWZlIFNvZnQgV2hpdGUgQnVsYnMiLCI2LjE2" +
+    "IiwiMiIsIjAuMCIsIjIuOTU2OCIKIjIwMTUtMDQtMTgiLCJTdGFuZGFyZCBDbGFzcyIsIkNvbnN1" +
+    "bWVyIiwiSW5kaWFuYSIsIkNlbnRyYWwiLCJGdXJuaXR1cmUiLCJDaGFpcnMiLCJHbG9iYWwgTGVh" +
+    "dGhlciBUYXNrIENoYWlyLCBCbGFjayIsIjg5Ljk5IiwiMSIsIjAuMCIsIjE3LjA5ODEiCiIyMDE2" +
+    "LTEyLTExIiwiU3RhbmRhcmQgQ2xhc3MiLCJDb3Jwb3JhdGUiLCJOZXcgWW9yayIsIkVhc3QiLCJP" +
+    "ZmZpY2UgU3VwcGxpZXMiLCJGYXN0ZW5lcnMiLCJBZHZhbnR1cyBQdXNoIFBpbnMiLCIxNS4yNiIs" +
+    "IjciLCIwLjAiLCI2LjI1NjYiCiIyMDE2LTEyLTExIiwiU3RhbmRhcmQgQ2xhc3MiLCJDb3Jwb3Jh" +
+    "dGUiLCJOZXcgWW9yayIsIkVhc3QiLCJUZWNobm9sb2d5IiwiUGhvbmVzIiwiQVQmVCBDTDgzNDUx" +
+    "IDQtSGFuZHNldCBUZWxlcGhvbmUiLCIxMDI5Ljk1IiwiNSIsIjAuMCIsIjI5OC42ODU1IgoiMjAx" +
+    "Ni0wNi0xNyIsIkZpcnN0IENsYXNzIiwiQ29uc3VtZXIiLCJOZXcgWW9yayIsIkVhc3QiLCJPZmZp" +
+    "Y2UgU3VwcGxpZXMiLCJTdG9yYWdlIiwiSG9tZS9PZmZpY2UgUGVyc29uYWwgRmlsZSBDYXJ0cyIs" +
+    "IjIwOC41NiIsIjYiLCIwLjAiLCI1Mi4xNCIKIjIwMTYtMDYtMTciLCJGaXJzdCBDbGFzcyIsIkNv" +
+    "bnN1bWVyIiwiTmV3IFlvcmsiLCJFYXN0IiwiT2ZmaWNlIFN1cHBsaWVzIiwiUGFwZXIiLCJYZXJv" +
+    "eCAyMzIiLCIzMi40IiwiNSIsIjAuMCIsIjE1LjU1MiIKIjIwMTYtMDYtMTciLCJGaXJzdCBDbGFz" +
+    "cyIsIkNvbnN1bWVyIiwiTmV3IFlvcmsiLCJFYXN0IiwiRnVybml0dXJlIiwiQ2hhaXJzIiwiTm92" +
+    "aW1leCBUdXJibyBUYXNrIENoYWlyIiwiMzE5LjQxIiwiNSIsIjAuMSIsIjcuMDk4IgoiMjAxNi0w" +
+    "Ni0xNyIsIkZpcnN0IENsYXNzIiwiQ29uc3VtZXIiLCJOZXcgWW9yayIsIkVhc3QiLCJPZmZpY2Ug" +
+    "U3VwcGxpZXMiLCJQYXBlciIsIkFycmF5IFBhcmNobWVudCBQYXBlciwgQXNzb3J0ZWQgQ29sb3Jz" +
+    "IiwiMTQuNTYiLCIyIiwiMC4wIiwiNi45ODg4IgoiMjAxNi0wNi0xNyIsIkZpcnN0IENsYXNzIiwi" +
+    "Q29uc3VtZXIiLCJOZXcgWW9yayIsIkVhc3QiLCJUZWNobm9sb2d5IiwiQWNjZXNzb3JpZXMiLCJJ" +
+    "bWF0aW9uwqA4Z2IgTWljcm8gVHJhdmVsZHJpdmUgVXNiIDIuMMKg4oCmIiwiMzAuMCIsIjIiLCIw" +
+    "LjAiLCIzLjMiCiIyMDE2LTA2LTE3IiwiRmlyc3QgQ2xhc3MiLCJDb25zdW1lciIsIk5ldyBZb3Jr" +
+    "IiwiRWFzdCIsIk9mZmljZSBTdXBwbGllcyIsIkJpbmRlcnMiLCJQbGFzdGljIEJpbmRpbmcgQ29t" +
+    "YnMiLCI0OC40OCIsIjQiLCIwLjIiLCIxNi4zNjIiCiIyMDE2LTA2LTE3IiwiRmlyc3QgQ2xhc3Mi" +
+    "LCJDb25zdW1lciIsIk5ldyBZb3JrIiwiRWFzdCIsIk9mZmljZSBTdXBwbGllcyIsIkFydCIsIlBy" +
+    "YW5nIER1c3RsZXNzIENoYWxrIFN0aWNrcyIsIjEuNjgiLCIxIiwiMC4wIiwiMC44NCIKIjIwMTUt" +
+    "MTEtMjQiLCJTdGFuZGFyZCBDbGFzcyIsIkNvbnN1bWVyIiwiQ2FsaWZvcm5pYSIsIldlc3QiLCJU" +
+    "ZWNobm9sb2d5IiwiQWNjZXNzb3JpZXMiLCJWZXJiYXRpbSAyNSBHQiA2eCBCbHUtcmF5IFNpbmds" +
+    "ZSBMYXllcuKApiIsIjEzLjk4IiwiMiIsIjAuMCIsIjYuMTUxMiIKIjIwMTUtMTEtMjQiLCJTdGFu" +
+    "ZGFyZCBDbGFzcyIsIkNvbnN1bWVyIiwiQ2FsaWZvcm5pYSIsIldlc3QiLCJPZmZpY2UgU3VwcGxp" +
+    "ZXMiLCJCaW5kZXJzIiwiQWNjbyBQUkVTU1RFWCBEYXRhIEJpbmRlciB3aXRoIFN0b3JhZ2XigKYi" +
+    "LCIyNS44MjQiLCI2IiwiMC4yIiwiOS4zNjEyIgoiMjAxNS0xMS0yNCIsIlN0YW5kYXJkIENsYXNz" +
+    "IiwiQ29uc3VtZXIiLCJDYWxpZm9ybmlhIiwiV2VzdCIsIk9mZmljZSBTdXBwbGllcyIsIlBhcGVy" +
+    "IiwiWGVyb3ggMTk0MyIsIjE0Ni43MyIsIjMiLCIwLjAiLCI2OC45NjMxIgoiMjAxNS0xMS0yNCIs" +
+    "IlN0YW5kYXJkIENsYXNzIiwiQ29uc3VtZXIiLCJDYWxpZm9ybmlhIiwiV2VzdCIsIkZ1cm5pdHVy" +
+    "ZSIsIkZ1cm5pc2hpbmdzIiwiTHV4byBFY29ub215IFN3aW5nIEFybSBMYW1wIiwiNzkuNzYiLCI0" +
+    "IiwiMC4wIiwiMjIuMzMyOCIKIjIwMTUtMDQtMzAiLCJTdGFuZGFyZCBDbGFzcyIsIkhvbWUgT2Zm" +
+    "aWNlIiwiSWxsaW5vaXMiLCJDZW50cmFsIiwiRnVybml0dXJlIiwiQ2hhaXJzIiwiR2xvYmFsIFZh" +
+    "bHVlIE1pZC1CYWNrIE1hbmFnZXIncyBDaGFpcizigKYiLCIyMTMuMTE1IiwiNSIsIjAuMyIsIi0x" +
+    "NS4yMjI1IgoiMjAxNC0xMi0wNSIsIlN0YW5kYXJkIENsYXNzIiwiQ29ycG9yYXRlIiwiQXJpem9u" +
+    "YSIsIldlc3QiLCJPZmZpY2UgU3VwcGxpZXMiLCJBcnQiLCJIdW50IEJPU1RPTiBNb2RlbCAxNjA2" +
+    "IEhpZ2gtVm9sdW1lIEVsZeKApiIsIjExMTMuMDI0IiwiOCIsIjAuMiIsIjExMS4zMDI0IgoiMjAx" +
+    "NC0xMi0wNSIsIlN0YW5kYXJkIENsYXNzIiwiQ29ycG9yYXRlIiwiQXJpem9uYSIsIldlc3QiLCJU" +
+    "ZWNobm9sb2d5IiwiUGhvbmVzIiwibmV0VEFMSyBEVU8gVm9JUCBUZWxlcGhvbmUgU2VydmljZSIs" +
+    "IjE2Ny45NjgiLCI0IiwiMC4yIiwiNjIuOTg4IgoiMjAxNi0wNi0wNCIsIkZpcnN0IENsYXNzIiwi" +
+    "Q29uc3VtZXIiLCJWaXJnaW5pYSIsIlNvdXRoIiwiT2ZmaWNlIFN1cHBsaWVzIiwiUGFwZXIiLCJT" +
+    "bmFwLUEtV2F5IEJsYWNrIFByaW50IENhcmJvbmxlc3MgUnVsZeKApiIsIjc1Ljg4IiwiMiIsIjAu" +
+    "MCIsIjM1LjY2MzYiCiIyMDE2LTA5LTE4IiwiU3RhbmRhcmQgQ2xhc3MiLCJDb25zdW1lciIsIk5l" +
+    "dyBZb3JrIiwiRWFzdCIsIk9mZmljZSBTdXBwbGllcyIsIkJpbmRlcnMiLCJBdmVyeSBCaW5kaW5n" +
+    "IFN5c3RlbSBIaWRkZW4gVGFiIEV4ZWN1dOKApiIsIjQuNjE2IiwiMSIsIjAuMiIsIjEuNzMxIgoi" +
+    "MjAxNy0wOS0xNCIsIlNlY29uZCBDbGFzcyIsIkNvbnN1bWVyIiwiTWljaGlnYW4iLCJDZW50cmFs" +
+    "IiwiT2ZmaWNlIFN1cHBsaWVzIiwiUGFwZXIiLCJUZWxlcGhvbmUgTWVzc2FnZSBCb29rcyB3aXRo" +
+    "IEZheC9Nb2JpbOKApiIsIjE5LjA1IiwiMyIsIjAuMCIsIjguNzYzIgoiMjAxNS0wNC0yNiIsIlN0" +
+    "YW5kYXJkIENsYXNzIiwiQ29uc3VtZXIiLCJUZW5uZXNzZWUiLCJTb3V0aCIsIkZ1cm5pdHVyZSIs" +
+    "IkNoYWlycyIsIkhpZ2gtQmFjayBMZWF0aGVyIE1hbmFnZXIncyBDaGFpciIsIjgzMS45MzYiLCI4" +
+    "IiwiMC4yIiwiLTExNC4zOTEyIgoiMjAxNS0wNC0yNiIsIlN0YW5kYXJkIENsYXNzIiwiQ29uc3Vt" +
+    "ZXIiLCJUZW5uZXNzZWUiLCJTb3V0aCIsIkZ1cm5pdHVyZSIsIkZ1cm5pc2hpbmdzIiwiVGVuZXgg" +
+    "VHJhZGl0aW9uYWwgQ2hhaXJtYXRzIGZvciBNZWRpdW3igKYiLCI5Ny4wNCIsIjIiLCIwLjIiLCIx" +
+    "LjIxMyIKIjIwMTUtMDQtMjYiLCJTdGFuZGFyZCBDbGFzcyIsIkNvbnN1bWVyIiwiVGVubmVzc2Vl" +
+    "IiwiU291dGgiLCJPZmZpY2UgU3VwcGxpZXMiLCJTdG9yYWdlIiwiU2FmY28gSW5kdXN0cmlhbCBX" +
+    "aXJlIFNoZWx2aW5nIFN5c3RlbSIsIjcyLjc4NCIsIjEiLCIwLjIiLCItMTguMTk2IgoiMjAxNy0x" +
+    "Mi0wOSIsIkZpcnN0IENsYXNzIiwiQ29ycG9yYXRlIiwiVGV4YXMiLCJDZW50cmFsIiwiT2ZmaWNl" +
+    "IFN1cHBsaWVzIiwiQmluZGVycyIsIkVjb25vbXkgQmluZGVycyIsIjEuMjQ4IiwiMyIsIjAuOCIs" +
+    "Ii0xLjkzNDQiCiIyMDE3LTEyLTA5IiwiRmlyc3QgQ2xhc3MiLCJDb3Jwb3JhdGUiLCJUZXhhcyIs" +
+    "IkNlbnRyYWwiLCJGdXJuaXR1cmUiLCJGdXJuaXNoaW5ncyIsIjYiIiBDdWJpY2xlIFdhbGwgQ2xv" +
+    "Y2ssIEJsYWNrIiwiOS43MDgiLCIzIiwiMC42IiwiLTUuODI0OCIKIjIwMTctMTItMDkiLCJGaXJz" +
+    "dCBDbGFzcyIsIkNvcnBvcmF0ZSIsIlRleGFzIiwiQ2VudHJhbCIsIk9mZmljZSBTdXBwbGllcyIs" +
+    "IlN0b3JhZ2UiLCJTaW1wbGlGaWxlIFBlcnNvbmFsIEZpbGUsIEJsYWNrIEdyYW5pdOKApiIsIjI3" +
+    "LjI0IiwiMyIsIjAuMiIsIjIuNzI0IgoiMjAxNC0xMS0yNiIsIlNlY29uZCBDbGFzcyIsIkNvbnN1" +
+    "bWVyIiwiVGV4YXMiLCJDZW50cmFsIiwiRnVybml0dXJlIiwiRnVybmlzaGluZ3MiLCJFbGRvbiBF" +
+    "eHByZXNzaW9ucyBEZXNrIEFjY2Vzc29yeSwgV29vZOKApiIsIjE5LjMiLCI1IiwiMC42IiwiLTE0" +
+    "LjQ3NSIKIjIwMTYtMDYtMTIiLCJGaXJzdCBDbGFzcyIsIkNvcnBvcmF0ZSIsIkFsYWJhbWEiLCJT" +
+    "b3V0aCIsIk9mZmljZSBTdXBwbGllcyIsIkFwcGxpYW5jZXMiLCIxLjcgQ3ViaWMgRm9vdCBDb21w" +
+    "YWN0ICIiQ3ViZSIiIE9mZmljZSBS4oCmIiwiMjA4LjE2IiwiMSIsIjAuMCIsIjU2LjIwMzIi";
+  var bin = atob(b64);
+  var bytes = new Uint8Array(bin.length);
+  for (var i=0;i<bin.length;i++) bytes[i] = bin.charCodeAt(i);
+  return new TextDecoder("utf-8").decode(bytes);
+})();
+
+</script>
+
+<script>
+/* ============================================================
+   Dynamic CSV Dashboard — single-file, dependency-free
+   ============================================================ */
+(function () {
+  "use strict";
+
+  // ---- state -------------------------------------------------
+  var STATE = {
+    columns: [],      // [{name, type, raw, num, dt}]
+    rows: [],         // [{__orig: rawRow, ...typed}]
+    filters: {},      // colName -> {values:Set, range:[min,max]}
+    sort: {col: null, dir: 1},
+    page: 1,
+    pageSize: 25,
+    search: "",
+    fileName: "",
+  };
+
+  // ---- helpers ----------------------------------------------
+  function $(id){ return document.getElementById(id); }
+  function el(tag, cls, html){ var e=document.createElement(tag); if(cls)e.className=cls; if(html!=null)e.innerHTML=html; return e; }
+  function fmtNum(n, dec){
+    if (n === null || n === undefined || isNaN(n)) return "—";
+    dec = dec == null ? (Math.abs(n) >= 1000 ? 0 : 2) : dec;
+    var neg = n < 0; var s = Math.abs(n).toFixed(dec);
+    var parts = s.split("."); var w = parts[0];
+    if (w.length > 3){
+      var head = w.slice(0, -3), tail = w.slice(-3); var g = [];
+      while (head.length > 2){ g.unshift(head.slice(-2)); head = head.slice(0,-2); }
+      if (head) g.unshift(head);
+      w = g.join(",") + "," + tail;
+    }
+    return (neg?"-":"") + w + (parts[1]?"."+parts[1]:"");
+  }
+  function fmtCompact(n){
+    if (n === null || n === undefined || isNaN(n)) return "—";
+    var a = Math.abs(n);
+    if (a >= 1e9) return (n/1e9).toFixed(2)+"B";
+    if (a >= 1e6) return (n/1e6).toFixed(2)+"M";
+    if (a >= 1e3) return (n/1e3).toFixed(1)+"k";
+    return fmtNum(n, 2);
+  }
+  function pct(num, den){ if(!den) return 0; return num/den*100; }
+  var PALETTE = ["#6d7cff","#22d3ee","#34d399","#fbbf24","#fb7185","#a78bfa","#f97316","#06b6d4","#84cc16","#ec4899","#8b5cf6","#14b8a6"];
+
+  // ---- CSV parser -------------------------------------------
+  function parseCSV(text){
+    // strip BOM
+    if (text.charCodeAt(0) === 0xFEFF) text = text.slice(1);
+    var rows = []; var row = []; var cur = ""; var inQ = false;
+    for (var i=0;i<text.length;i++){
+      var c = text[i];
+      if (inQ){
+        if (c === '"'){
+          if (text[i+1] === '"'){ cur += '"'; i++; }
+          else { inQ = false; }
+        } else { cur += c; }
+      } else {
+        if (c === '"') inQ = true;
+        else if (c === '\r') { /* ignore */ }
+        else if (c === '\n'){ row.push(cur); rows.push(row); row=[]; cur=""; }
+        else if (c === ','){ row.push(cur); cur=""; }
+        else cur += c;
+      }
+    }
+    if (cur.length > 0 || row.length > 0){ row.push(cur); rows.push(row); }
+    // drop empty trailing rows
+    while (rows.length && rows[rows.length-1].length === 1 && rows[rows.length-1][0].trim() === "") rows.pop();
+    if (!rows.length) return {headers:[], rows:[]};
+    var headers = rows[0].map(function(h){ return h.trim(); });
+    // ensure unique headers
+    var seen = {}; headers = headers.map(function(h){
+      var base = h || "col"; var name = base; var k = 1;
+      while (seen[name]){ name = base + "_" + k; k++; }
+      seen[name] = true; return name;
+    });
+    var data = [];
+    for (var r=1;r<rows.length;r++){
+      if (rows[r].length === 1 && rows[r][0].trim() === "") continue;
+      var obj = {};
+      for (var c=0;c<headers.length;c++){ obj[headers[c]] = rows[r][c] != null ? rows[r][c] : ""; }
+      data.push(obj);
+    }
+    return {headers:headers, rows:data};
+  }
+
+  // ---- type detection ---------------------------------------
+  var DATE_RE_1 = /^\d{4}-\d{1,2}-\d{1,2}/;
+  var DATE_RE_2 = /^\d{1,2}[\/\-.]\d{1,2}[\/\-.]\d{2,4}/;
+
+  function tryDate(s){
+    if (s == null) return null;
+    s = String(s).trim();
+    if (!s) return null;
+    if (!DATE_RE_1.test(s) && !DATE_RE_2.test(s)) return null;
+    var d = new Date(s);
+    if (isNaN(d.getTime())) return null;
+    return d;
+  }
+  function tryNum(s){
+    if (s == null) return null;
+    if (typeof s === "number") return s;
+    var t = String(s).trim();
+    if (!t) return null;
+    // strip currency symbols, thousands sep, percent
+    var cleaned = t.replace(/[,$€£¥₹\s]/g,"").replace(/%$/,"");
+    if (cleaned === "" || cleaned === "-") return null;
+    if (!/^-?\d+(\.\d+)?$/.test(cleaned)) return null;
+    var n = parseFloat(cleaned);
+    return isNaN(n) ? null : n;
+  }
+
+  function detectColumns(headers, rows){
+    var cols = [];
+    var sampleN = Math.min(rows.length, 200);
+    headers.forEach(function(h){
+      var vals = [];
+      for (var i=0;i<rows.length;i++){ vals.push(rows[i][h]); }
+      var sample = vals.slice(0, sampleN);
+      // try date
+      var dateCount = 0, numCount = 0, nonEmpty = 0;
+      for (var i=0;i<sample.length;i++){
+        var v = sample[i];
+        if (v == null || String(v).trim() === "") continue;
+        nonEmpty++;
+        if (tryNum(v) != null) numCount++;
+        if (tryDate(v) != null) dateCount++;
+      }
+      var type = "text";
+      var dt = null, num = null;
+      if (nonEmpty === 0) type = "text";
+      else if (dateCount / nonEmpty > 0.8){ type = "date"; }
+      else if (numCount / nonEmpty > 0.85) { type = "number"; }
+      else {
+        // category vs id vs text
+        var uniq = {}; var ne = 0;
+        for (var i=0;i<vals.length;i++){
+          var v2 = vals[i]; if (v2 == null || String(v2).trim()==="") continue;
+          ne++; uniq[String(v2).trim()] = true;
+        }
+        var u = Object.keys(uniq).length;
+        if (ne > 0 && u / ne < 0.5 && u <= 50) type = "category";
+        else if (ne > 0 && u / ne > 0.9) type = "id";
+        else type = "text";
+      }
+      cols.push({name:h, type:type});
+    });
+    return cols;
+  }
+
+  // convert raw rows -> typed rows based on columns
+  function typeRows(rawRows, cols){
+    return rawRows.map(function(r){
+      var o = {__raw: r};
+      cols.forEach(function(c){
+        var v = r[c.name];
+        if (c.type === "date") o[c.name] = tryDate(v);
+        else if (c.type === "number") o[c.name] = tryNum(v);
+        else o[c.name] = (v == null ? "" : String(v).trim());
+      });
+      return o;
+    });
+  }
+
+  // ---- data load -------------------------------------------
+  function loadData(headers, rows, fileName){
+    var cols = detectColumns(headers, rows);
+    var typed = typeRows(rows, cols);
+    STATE.columns = cols; STATE.rows = typed; STATE.fileName = fileName;
+    STATE.filters = {}; STATE.sort = {col:null, dir:1}; STATE.page = 1; STATE.search = "";
+    $("uploadZone").classList.add("hidden");
+    $("dashboard").classList.remove("hidden");
+    $("exportBtn").disabled = false;
+    $("statusPill").innerHTML = '<span class="dot"></span> <strong>' + escapeHtml(fileName) + '</strong> &middot; ' + rows.length + ' rows &middot; ' + cols.length + ' cols';
+    $("footStamp").textContent = new Date().toLocaleString();
+    buildFilters();
+    buildControls();
+    renderAll();
+  }
+
+  function escapeHtml(s){ return String(s).replace(/[&<>"']/g, function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c];}); }
+
+  // ---- filtering -------------------------------------------
+  function filteredRows(){
+    var fr = STATE.rows;
+    var f = STATE.filters;
+    var keys = Object.keys(f);
+    if (keys.length){
+      fr = fr.filter(function(r){
+        for (var i=0;i<keys.length;i++){
+          var k = keys[i]; var fv = f[k];
+          if (fv.values && fv.values.size){
+            var val = r[k];
+            var sval = (val instanceof Date) ? val.getTime() : val;
+            var match = false;
+            fv.values.forEach(function(sv){ if (sv === sval) match = true; });
+            // for category/text we stored strings; for dates we store timestamp strings
+            if (!match && typeof val === "string" && fv.values.has(val)) match = true;
+            if (!match) return false;
+          }
+          if (fv.range && (r[k] == null || r[k] < fv.range[0] || r[k] > fv.range[1])) return false;
+        }
+        return true;
+      });
+    }
+    if (STATE.search){
+      var q = STATE.search.toLowerCase();
+      fr = fr.filter(function(r){
+        var raw = r.__raw;
+        for (var k in raw){ if (String(raw[k]).toLowerCase().indexOf(q) >= 0) return true; }
+        return false;
+      });
+    }
+    return fr;
+  }
+
+  function colValues(rows, col){
+    var out = [];
+    for (var i=0;i<rows.length;i++) out.push(rows[i][col]);
+    return out;
+  }
+  function uniqValues(rows, col){
+    var s = {}; for (var i=0;i<rows.length;i++){ var v = rows[i][col]; if (v != null && v !== "") s[v] = true; }
+    return Object.keys(s);
+  }
+  function sum(rows, col){ var s=0; for (var i=0;i<rows.length;i++){ var v = rows[i][col]; if (typeof v === "number") s += v; } return s; }
+  function mean(rows, col){ var n=0,s=0; for (var i=0;i<rows.length;i++){ var v=rows[i][col]; if (typeof v==="number"){ s+=v; n++; } } return n? s/n : 0; }
+  function minV(rows, col){ var m=null; for (var i=0;i<rows.length;i++){ var v=rows[i][col]; if (typeof v==="number"){ if (m==null||v<m) m=v; } } return m; }
+  function maxV(rows, col){ var m=null; for (var i=0;i<rows.length;i++){ var v=rows[i][col]; if (typeof v==="number"){ if (m==null||v>m) m=v; } } return m; }
+
+  // ---- build UI controls -----------------------------------
+  function buildFilters(){
+    var box = $("filters"); box.innerHTML = "";
+    var cats = STATE.columns.filter(function(c){ return c.type === "category"; }).slice(0, 5);
+    cats.forEach(function(c){
+      var uniq = uniqValues(STATE.rows, c.name).sort();
+      var f = el("label","field");
+      f.innerHTML = "<span>" + escapeHtml(c.name) + "</span>";
+      var sel = el("select"); sel.innerHTML = '<option value="">All</option>' +
+        uniq.map(function(v){ return '<option value="'+escapeHtml(v)+'">'+escapeHtml(v)+'</option>'; }).join("");
+      sel.addEventListener("change", function(){
+        if (!this.value){ delete STATE.filters[c.name]; }
+        else { STATE.filters[c.name] = {values: new Set([this.value])}; }
+        STATE.page = 1; renderAll();
+      });
+      f.appendChild(sel); box.appendChild(f);
+    });
+    var reset = el("button","btn ghost small"); reset.textContent = "Reset filters";
+    reset.addEventListener("click", function(){ STATE.filters = {}; renderAll(); document.querySelectorAll("#filters select").forEach(function(s){ s.value = ""; }); });
+    box.appendChild(reset);
+  }
+
+  function fillSelect(sel, items, keepFirst){
+    var first = keepFirst ? sel.options[0] : null;
+    sel.innerHTML = "";
+    if (first) sel.appendChild(first);
+    items.forEach(function(it){ var o = el("option"); o.value = it.value; o.textContent = it.label; sel.appendChild(o); });
+  }
+
+  function buildControls(){
+    var dates = STATE.columns.filter(function(c){ return c.type === "date"; }).map(function(c){return {value:c.name,label:c.name};});
+    var nums = STATE.columns.filter(function(c){ return c.type === "number"; }).map(function(c){return {value:c.name,label:c.name};});
+    var cats = STATE.columns.filter(function(c){ return c.type === "category" || c.type === "text"; }).map(function(c){return {value:c.name,label:c.name};});
+
+    function addAny(arr){ return [{value:"",label:"(none)"}].concat(arr); }
+
+    fillSelect($("trendDate"), dates);
+    fillSelect($("trendVal"), nums.length ? nums : [{value:"",label:"(no numbers)"}]);
+    fillSelect($("trendSplit"), addAny(cats));
+    if (dates.length) $("trendDate").value = dates[0].value;
+    if (nums.length) $("trendVal").value = nums[0].value;
+
+    fillSelect($("donutCol"), cats.length ? cats : [{value:"",label:"(no categories)"}]);
+    if (cats.length) $("donutCol").value = cats[0].value;
+
+    fillSelect($("barCol"), cats.length ? cats : [{value:"",label:"(no categories)"}]);
+    fillSelect($("barVal"), nums.length ? nums : [{value:"",label:"(no numbers)"}]);
+    if (cats.length) $("barCol").value = cats[0].value;
+    if (nums.length) $("barVal").value = nums[0].value;
+
+    fillSelect($("histCol"), nums.length ? nums : [{value:"",label:"(no numbers)"}]);
+    if (nums.length) $("histCol").value = nums[0].value;
+
+    fillSelect($("scatX"), nums.length ? nums : [{value:"",label:"(no numbers)"}]);
+    fillSelect($("scatY"), nums.length ? nums : [{value:"",label:"(no numbers)"}]);
+    fillSelect($("scatC"), addAny(cats));
+    if (nums.length >= 1) $("scatX").value = nums[0].value;
+    if (nums.length >= 2) $("scatY").value = nums[1].value;
+    else if (nums.length === 1) $("scatY").value = nums[0].value;
+  }
+
+  // ---- render -----------------------------------------------
+  function renderAll(){
+    var rows = filteredRows();
+    syncCount(rows);
+    renderKPIs(rows);
+    renderTrend(rows);
+    renderDonut(rows);
+    renderBars(rows);
+    renderHist(rows);
+    renderScat(rows);
+    renderSchema();
+    renderTable(rows);
+  }
+
+  // Update only the row-count pills (cheap; called on every filter/search change).
+  function syncCount(rows){
+    $("rowCount").textContent = rows.length + " / " + STATE.rows.length + " rows";
+    $("dataCount").textContent = rows.length + " of " + STATE.rows.length + " rows";
+  }
+
+  function renderKPIs(rows){
+    var box = $("kpis"); box.innerHTML = "";
+    var cards = [];
+    cards.push({label:"Records", value: fmtNum(rows.length, 0), sub:"filtered rows"});
+    var dateCol = STATE.columns.find(function(c){return c.type==="date";});
+    if (dateCol){
+      var ds = rows.map(function(r){return r[dateCol.name];}).filter(function(d){return d instanceof Date;});
+      if (ds.length){
+        var mn = ds.reduce(function(a,b){return a<b?a:b;}); var mx = ds.reduce(function(a,b){return a>b?a:b;});
+        cards.push({label:"Date range", value: fmtShort(mn) + "–" + fmtShort(mx), sub: dateCol.name});
+      }
+    }
+    var nums = STATE.columns.filter(function(c){return c.type==="number";}).slice(0,4);
+    nums.forEach(function(c){
+      var s = sum(rows, c.name); var m = mean(rows, c.name);
+      cards.push({label:"Σ " + c.name, value: fmtCompact(s), sub:"avg "+fmtCompact(m)});
+    });
+    // pad to at least 4
+    while (cards.length < 4) cards.push({label:"—", value:"—", sub:""});
+    cards.slice(0,6).forEach(function(k){
+      var c = el("div","kpi");
+      c.innerHTML = '<div class="kpi-label">'+escapeHtml(k.label)+'</div>'+
+        '<div class="kpi-value">'+escapeHtml(k.value)+'</div>'+
+        '<div class="kpi-sub">'+escapeHtml(k.sub)+'</div>';
+      box.appendChild(c);
+    });
+  }
+
+  function fmtShort(d){
+    if (!(d instanceof Date)) return "—";
+    var m = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+    return m[d.getMonth()] + " " + d.getFullYear();
+  }
+
+  // ---- SVG helpers -----------------------------------------
+  function svg(tag, attrs){ var e=document.createElementNS("http://www.w3.org/2000/svg", tag); for (var k in attrs) e.setAttribute(k, attrs[k]); return e; }
+  function measureW(sel){ var w = sel.getBoundingClientRect().width; return w > 0 ? w : 600; }
+
+  function tooltipOn(target, html){
+    target.addEventListener("mousemove", function(e){
+      var t = $("tip"); t.innerHTML = html; t.classList.add("on");
+      var x = e.clientX + 14, y = e.clientY + 14;
+      var tw = t.offsetWidth, th = t.offsetHeight;
+      if (x + tw > window.innerWidth) x = e.clientX - tw - 10;
+      if (y + th > window.innerHeight) y = e.clientY - th - 10;
+      t.style.left = x + "px"; t.style.top = y + "px";
+    });
+    target.addEventListener("mouseleave", function(){ $("tip").classList.remove("on"); });
+  }
+
+  // ---- trend chart (multi-line + area) ---------------------
+  function renderTrend(rows){
+    var box = $("trendChart"); box.innerHTML = "";
+    var dName = $("trendDate").value, vName = $("trendVal").value, sName = $("trendSplit").value;
+    if (!dName || !vName){ box.innerHTML = '<div class="empty">Select a date column and a value column.</div>'; $("trendLegend").innerHTML=""; $("trendSub").textContent="—"; return; }
+    // group by month
+    var buckets = {};
+    var splitKeys = {};
+    rows.forEach(function(r){
+      var d = r[dName]; if (!(d instanceof Date)) return;
+      var key = d.getFullYear() + "-" + String(d.getMonth()+1).padStart(2,"0");
+      if (!buckets[key]) buckets[key] = {};
+      var sk = sName ? (r[sName] || "(blank)") : "_";
+      splitKeys[sk] = true;
+      buckets[key][sk] = (buckets[key][sk] || 0) + (typeof r[vName] === "number" ? r[vName] : 0);
+    });
+    var months = Object.keys(buckets).sort();
+    if (!months.length){ box.innerHTML = '<div class="empty">No date values in the current filter.</div>'; return; }
+    var splits = Object.keys(splitKeys).sort();
+    if (splits.length > 8) { splits = splits.slice(0,8); }
+    var W = measureW(box), H = 230, padL = 60, padR = 14, padT = 12, padB = 36;
+    var plotW = W - padL - padR, plotH = H - padT - padB;
+    var maxV = 0;
+    months.forEach(function(m){ splits.forEach(function(s){ if (buckets[m][s] > maxV) maxV = buckets[m][s]; }); });
+    if (maxV === 0) maxV = 1;
+    var x = function(i){ return padL + (months.length===1?plotW/2: plotW * i/(months.length-1)); };
+    var y = function(v){ return padT + plotH - plotH * (v/maxV); };
+    var svgEl = svg("svg", {width:W, height:H});
+    // grid
+    var ticks = 4;
+    for (var t=0;t<=ticks;t++){
+      var yy = padT + plotH*t/ticks; var val = maxV*(1-t/ticks);
+      svgEl.appendChild(svg("line",{x1:padL,y1:yy,x2:W-padR,y2:yy,stroke:"rgba(148,163,184,0.1)","stroke-width":1}));
+      var lab = svg("text",{x:padL-8,y:yy+3,"text-anchor":"end",fill:"#63718d","font-size":10});
+      lab.textContent = fmtCompact(val); svgEl.appendChild(lab);
+    }
+    // x labels (sparse)
+    var labEvery = Math.ceil(months.length / 8);
+    months.forEach(function(m, i){
+      if (i % labEvery !== 0 && i !== months.length-1) return;
+      var lab = svg("text",{x:x(i),y:H-padB+16,"text-anchor":"middle",fill:"#63718d","font-size":10});
+      lab.textContent = m; svgEl.appendChild(lab);
+    });
+    // lines per split
+    var legendItems = [];
+    splits.forEach(function(s, si){
+      var color = PALETTE[si % PALETTE.length];
+      var d = "";
+      months.forEach(function(m, i){
+        var v = buckets[m][s] || 0;
+        d += (i===0?"M":"L") + x(i) + " " + y(v) + " ";
+      });
+      // area fill for single series
+      if (splits.length === 1){
+        var area = d + "L" + x(months.length-1) + " " + (padT+plotH) + " L" + x(0) + " " + (padT+plotH) + " Z";
+        var grad = "tgrad" + si;
+        var defs = svg("defs");
+        defs.innerHTML = '<linearGradient id="'+grad+'" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="'+color+'" stop-opacity="0.35"/><stop offset="100%" stop-color="'+color+'" stop-opacity="0"/></linearGradient>';
+        svgEl.appendChild(defs);
+        svgEl.appendChild(svg("path",{d:area,fill:"url(#"+grad+")",stroke:"none"}));
+      }
+      var path = svg("path",{d:d,fill:"none",stroke:color,"stroke-width":2,"stroke-linejoin":"round","stroke-linecap":"round"});
+      svgEl.appendChild(path);
+      // points
+      months.forEach(function(m, i){
+        var v = buckets[m][s] || 0;
+        var p = svg("circle",{cx:x(i),cy:y(v),r:3,fill:"#0d1422",stroke:color,"stroke-width":1.5});
+        tooltipOn(p, '<div class="tt-title">'+escapeHtml(m)+'</div><div class="tt-row"><span class="tt-name">'+escapeHtml(s)+'</span><span>'+fmtNum(v)+'</span></div>');
+        svgEl.appendChild(p);
+      });
+      legendItems.push({color:color, name:s, val: sum(months.map(function(m){return buckets[m][s]||0;}))});
+    });
+    box.appendChild(svgEl);
+    var leg = $("trendLegend"); leg.innerHTML = "";
+    legendItems.forEach(function(it){
+      var li = el("div","legend-item");
+      li.innerHTML = '<span class="swatch" style="background:'+it.color+'"></span>'+escapeHtml(it.name)+' <b>'+fmtCompact(it.val)+'</b>';
+      leg.appendChild(li);
+    });
+    $("trendSub").textContent = (sName ? "monthly totals split by "+sName : "monthly totals of "+vName);
+  }
+
+  // ---- donut ------------------------------------------------
+  function renderDonut(rows){
+    var box = $("donut"); box.innerHTML = "";
+    var col = $("donutCol").value;
+    var valCol = $("trendVal").value || $("barVal").value;
+    if (!col){ box.innerHTML = '<div class="empty">Select a category column.</div>'; return; }
+    var agg = {};
+    rows.forEach(function(r){
+      var k = r[col] || "(blank)"; var v = (valCol && typeof r[valCol]==="number") ? r[valCol] : 1;
+      agg[k] = (agg[k]||0) + v;
+    });
+    var arr = Object.keys(agg).map(function(k){return {name:k, value:agg[k]};}).sort(function(a,b){return b.value-a.value;});
+    var top = arr.slice(0,6); var rest = arr.slice(6);
+    if (rest.length){
+      var rs = rest.reduce(function(a,b){return a+b.value;},0);
+      top.push({name:"Other ("+rest.length+")", value:rs});
+    }
+    var total = top.reduce(function(a,b){return a+b.value;},0) || 1;
+    var W = measureW(box) - 12, H = 200, cx = 80, cy = H/2, r = 70, ir = 44;
+    if (W < 220){ cx = 70; r = 60; ir = 36; }
+    var svgEl = svg("svg", {width: "100%", height: H, viewBox: "0 0 " + Math.max(W,200) + " " + H});
+    var ang = -Math.PI/2;
+    top.forEach(function(seg, i){
+      var color = PALETTE[i % PALETTE.length];
+      var a2 = ang + (seg.value/total) * Math.PI*2;
+      var large = (a2-ang) > Math.PI ? 1 : 0;
+      var x1 = cx + r*Math.cos(ang), y1 = cy + r*Math.sin(ang);
+      var x2 = cx + r*Math.cos(a2), y2 = cy + r*Math.sin(a2);
+      var xi1 = cx + ir*Math.cos(a2), yi1 = cy + ir*Math.sin(a2);
+      var xi2 = cx + ir*Math.cos(ang), yi2 = cy + ir*Math.sin(ang);
+      var d = "M"+x1+" "+y1+" A"+r+" "+r+" 0 "+large+" 1 "+x2+" "+y2+" L"+xi1+" "+yi1+" A"+ir+" "+ir+" 0 "+large+" 0 "+xi2+" "+yi2+" Z";
+      var p = svg("path",{d:d, fill:color, "stroke":"#0d1422", "stroke-width":1.5});
+      tooltipOn(p, '<div class="tt-title">'+escapeHtml(seg.name)+'</div><div class="tt-row"><span class="tt-name">share</span><span>'+pct(seg.value,total).toFixed(1)+'%</span></div><div class="tt-row"><span class="tt-name">'+(valCol?escapeHtml(valCol):"count")+'</span><span>'+fmtNum(seg.value)+'</span></div>');
+      svgEl.appendChild(p);
+      ang = a2;
+    });
+    // center label
+    var tl = svg("text",{x:cx,y:cy-4,"text-anchor":"middle",fill:"#8fa0bd","font-size":10,"font-weight":600});
+    tl.textContent = valCol ? "Σ "+valCol : "count";
+    svgEl.appendChild(tl);
+    var tv = svg("text",{x:cx,y:cy+14,"text-anchor":"middle",fill:"#e9eefb","font-size":15,"font-weight":700});
+    tv.textContent = fmtCompact(total);
+    svgEl.appendChild(tv);
+    box.style.display = "flex"; box.style.alignItems = "center"; box.style.gap = "8px";
+    box.appendChild(svgEl);
+    // legend
+    var dl = el("div","donut-legend"); dl.style.flex = "1"; dl.style.minWidth = "0";
+    top.forEach(function(seg, i){
+      var color = PALETTE[i % PALETTE.length];
+      var row = el("div","row");
+      row.innerHTML = '<span class="swatch" style="background:'+color+'"></span><span class="name">'+escapeHtml(seg.name)+'</span><span>'+pct(seg.value,total).toFixed(1)+'%</span>';
+      dl.appendChild(row);
+    });
+    box.appendChild(dl);
+    $("donutSub").textContent = valCol ? "share of "+valCol+" by "+col : "row count by "+col;
+  }
+
+  // ---- bars -------------------------------------------------
+  function renderBars(rows){
+    var box = $("barChart"); box.innerHTML = "";
+    var col = $("barCol").value, valCol = $("barVal").value;
+    if (!col || !valCol){ box.innerHTML = '<div class="empty">Select a category and a value column.</div>'; return; }
+    var agg = {};
+    rows.forEach(function(r){ var k = r[col] || "(blank)"; var v = typeof r[valCol]==="number" ? r[valCol] : 0; agg[k] = (agg[k]||0)+v; });
+    var arr = Object.keys(agg).map(function(k){return {name:k, value:agg[k]};}).sort(function(a,b){return b.value-a.value;}).slice(0,12);
+    if (!arr.length){ box.innerHTML='<div class="empty">No data.</div>'; return; }
+    var W = measureW(box), H = 260, padL=70, padR=14, padT=12, padB=70;
+    var plotW = W-padL-padR, plotH = H-padT-padB;
+    var maxV = arr.reduce(function(a,b){return Math.max(a,b.value);},0) || 1;
+    var bw = plotW/arr.length * 0.62;
+    var svgEl = svg("svg",{width:W, height:H});
+    var ticks=4;
+    for (var t=0;t<=ticks;t++){
+      var yy = padT + plotH*t/ticks; var val = maxV*(1-t/ticks);
+      svgEl.appendChild(svg("line",{x1:padL,y1:yy,x2:W-padR,y2:yy,stroke:"rgba(148,163,184,0.1)"}));
+      var lab = svg("text",{x:padL-8,y:yy+3,"text-anchor":"end",fill:"#63718d","font-size":10}); lab.textContent=fmtCompact(val); svgEl.appendChild(lab);
+    }
+    arr.forEach(function(it, i){
+      var x = padL + (i+0.5)*(plotW/arr.length) - bw/2;
+      var h = plotH * (it.value/maxV); var y = padT+plotH-h;
+      var color = PALETTE[i%PALETTE.length];
+      var r = svg("rect",{x:x,y:y,width:bw,height:h,fill:color,rx:3});
+      tooltipOn(r, '<div class="tt-title">'+escapeHtml(it.name)+'</div><div class="tt-row"><span class="tt-name">'+escapeHtml(valCol)+'</span><span>'+fmtNum(it.value)+'</span></div>');
+      svgEl.appendChild(r);
+      var lab = svg("text",{x:x+bw/2,y:H-padB+14,"text-anchor":"middle",fill:"#8fa0bd","font-size":10});
+      var nm = String(it.name); lab.textContent = nm.length>10 ? nm.slice(0,9)+"…" : nm;
+      svgEl.appendChild(lab);
+    });
+    box.appendChild(svgEl);
+    $("barsSub").textContent = "total "+valCol+" by "+col;
+  }
+
+  // ---- histogram --------------------------------------------
+  function renderHist(rows){
+    var box = $("histChart"); box.innerHTML = "";
+    var col = $("histCol").value;
+    if (!col){ box.innerHTML = '<div class="empty">Select a numeric column.</div>'; return; }
+    var vals = rows.map(function(r){return r[col];}).filter(function(v){return typeof v==="number" && !isNaN(v);});
+    if (!vals.length){ box.innerHTML='<div class="empty">No numeric values.</div>'; return; }
+    var mn = Math.min.apply(null,vals), mx = Math.max.apply(null,vals);
+    if (mn === mx){ mx = mn+1; }
+    var bins = Math.min(20, Math.max(6, Math.ceil(Math.sqrt(vals.length))));
+    var step = (mx-mn)/bins;
+    var counts = new Array(bins).fill(0);
+    vals.forEach(function(v){
+      var b = Math.floor((v-mn)/step); if (b>=bins) b=bins-1; if (b<0) b=0; counts[b]++;
+    });
+    var W = measureW(box), H = 240, padL=50, padR=14, padT=12, padB=40;
+    var plotW=W-padL-padR, plotH=H-padT-padB;
+    var maxC = Math.max.apply(null,counts) || 1;
+    var bw = plotW/bins*0.92;
+    var svgEl = svg("svg",{width:W,height:H});
+    var ticks=4;
+    for (var t=0;t<=ticks;t++){
+      var yy=padT+plotH*t/ticks; var val=Math.round(maxC*(1-t/ticks));
+      svgEl.appendChild(svg("line",{x1:padL,y1:yy,x2:W-padR,y2:yy,stroke:"rgba(148,163,184,0.1)"}));
+      var lab=svg("text",{x:padL-8,y:yy+3,"text-anchor":"end",fill:"#63718d","font-size":10}); lab.textContent=val; svgEl.appendChild(lab);
+    }
+    counts.forEach(function(c,i){
+      var x = padL + i*(plotW/bins);
+      var h = plotH*(c/maxC); var y = padT+plotH-h;
+      var color = PALETTE[0];
+      var lo = mn+i*step, hi = mn+(i+1)*step;
+      var r = svg("rect",{x:x,y:y,width:bw,height:h,fill:color,rx:2,opacity:0.85});
+      tooltipOn(r, '<div class="tt-title">bin '+i+'</div><div class="tt-row"><span class="tt-name">range</span><span>'+fmtNum(lo,1)+' – '+fmtNum(hi,1)+'</span></div><div class="tt-row"><span class="tt-name">count</span><span>'+c+'</span></div>');
+      svgEl.appendChild(r);
+    });
+    // x axis min/max
+    var l1 = svg("text",{x:padL,y:H-padB+16,"text-anchor":"middle",fill:"#63718d","font-size":10}); l1.textContent=fmtCompact(mn); svgEl.appendChild(l1);
+    var l2 = svg("text",{x:W-padR,y:H-padB+16,"text-anchor":"end",fill:"#63718d","font-size":10}); l2.textContent=fmtCompact(mx); svgEl.appendChild(l2);
+    box.appendChild(svgEl);
+    $("histSub").textContent = "histogram of "+col+" · "+bins+" bins";
+  }
+
+  // ---- scatter ---------------------------------------------
+  function renderScat(rows){
+    var box = $("scatChart"); box.innerHTML = "";
+    var xC = $("scatX").value, yC = $("scatY").value, sC = $("scatC").value;
+    if (!xC || !yC){ box.innerHTML='<div class="empty">Select X and Y numeric columns.</div>'; return; }
+    var pts = rows.map(function(r){ return {x:r[xC], y:r[yC], c: sC ? (r[sC]||"(blank)") : "_", r:r}; })
+      .filter(function(p){ return typeof p.x==="number" && typeof p.y==="number"; });
+    if (!pts.length){ box.innerHTML='<div class="empty">No paired numeric values.</div>'; return; }
+    pts = pts.slice(0, 1500); // cap for perf
+    var xs = pts.map(function(p){return p.x;}), ys = pts.map(function(p){return p.y;});
+    var xmn=Math.min.apply(null,xs), xmx=Math.max.apply(null,xs);
+    var ymn=Math.min.apply(null,ys), ymx=Math.max.apply(null,ys);
+    if (xmn===xmx) xmx=xmn+1; if (ymn===ymx) ymx=ymn+1;
+    var W=measureW(box), H=240, padL=50,padR=14,padT=12,padB=36;
+    var plotW=W-padL-padR, plotH=H-padT-padB;
+    var X=function(v){return padL+plotW*(v-xmn)/(xmx-xmn);};
+    var Y=function(v){return padT+plotH-plotH*(v-ymn)/(ymx-ymn);};
+    var svgEl=svg("svg",{width:W,height:H});
+    // grid
+    for (var t=0;t<=4;t++){
+      var yy=padT+plotH*t/4;
+      svgEl.appendChild(svg("line",{x1:padL,y1:yy,x2:W-padR,y2:yy,stroke:"rgba(148,163,184,0.08)"}));
+      var ly=svg("text",{x:padL-8,y:yy+3,"text-anchor":"end",fill:"#63718d","font-size":10}); ly.textContent=fmtCompact(ymx-(ymx-ymn)*t/4); svgEl.appendChild(ly);
+      var xx=padL+plotW*t/4;
+      svgEl.appendChild(svg("line",{x1:xx,y1:padT,x2:xx,y2:padT+plotH,stroke:"rgba(148,163,184,0.04)"}));
+      var lx=svg("text",{x:xx,y:H-padB+16,"text-anchor":"middle",fill:"#63718d","font-size":10}); lx.textContent=fmtCompact(xmn+(xmx-xmn)*t/4); svgEl.appendChild(lx);
+    }
+    // color map
+    var cmap = {};
+    if (sC){ var us = {}; pts.forEach(function(p){ us[p.c]=true; }); var keys = Object.keys(us).sort().slice(0,8); keys.forEach(function(k,i){ cmap[k]=PALETTE[i%PALETTE.length]; }); }
+    pts.forEach(function(p){
+      var color = sC ? (cmap[p.c] || "#94a3b8") : "#6d7cff";
+      var dot = svg("circle",{cx:X(p.x),cy:Y(p.y),r:3,fill:color,opacity:0.7,"stroke":"none"});
+      tooltipOn(dot, '<div class="tt-title">'+(sC?escapeHtml(p.c):"point")+'</div><div class="tt-row"><span class="tt-name">'+escapeHtml(xC)+'</span><span>'+fmtNum(p.x)+'</span></div><div class="tt-row"><span class="tt-name">'+escapeHtml(yC)+'</span><span>'+fmtNum(p.y)+'</span></div>');
+      svgEl.appendChild(dot);
+    });
+    box.appendChild(svgEl);
+    $("scatSub").textContent = yC + " vs " + xC + (sC?" · colored by "+sC:"");
+    if (sC){
+      var leg = el("div","legend");
+      Object.keys(cmap).forEach(function(k){
+        var li=el("span","legend-item"); li.innerHTML='<span class="swatch" style="background:'+cmap[k]+'"></span>'+escapeHtml(k); leg.appendChild(li);
+      });
+      box.appendChild(leg);
+    }
+  }
+
+  // ---- schema -----------------------------------------------
+  function renderSchema(){
+    var box = $("schemaList"); box.innerHTML = "";
+    STATE.columns.forEach(function(c){
+      var ch = el("div","schema-chip");
+      ch.innerHTML = '<span class="col">'+escapeHtml(c.name)+'</span><span class="typ '+c.type+'">'+c.type+'</span>';
+      box.appendChild(ch);
+    });
+    $("schemaSub").textContent = STATE.columns.length + " columns detected";
+  }
+
+  // ---- table -----------------------------------------------
+  function renderTable(rows){
+    var cols = STATE.columns;
+    var head = $("dataHead"); head.innerHTML = "";
+    var thead = el("tr");
+    cols.forEach(function(c){
+      var th = el("th", c.type==="number"?"num":"");
+      th.textContent = c.name;
+      th.dataset.col = c.name;
+      if (STATE.sort.col === c.name){ th.classList.add("sorted"); if (STATE.sort.dir>0) th.classList.add("asc"); }
+      th.addEventListener("click", function(){
+        if (STATE.sort.col === c.name) STATE.sort.dir = -STATE.sort.dir;
+        else { STATE.sort.col = c.name; STATE.sort.dir = 1; }
+        renderTable(filteredRows());
+      });
+      thead.appendChild(th);
+    });
+    head.appendChild(thead);
+
+    // sort
+    var sorted = rows.slice();
+    if (STATE.sort.col){
+      var sc = STATE.sort.col; var dir = STATE.sort.dir;
+      sorted.sort(function(a,b){
+        var av=a[sc], bv=b[sc];
+        if (av == null || av === "") return 1; if (bv == null || bv === "") return -1;
+        if (av instanceof Date && bv instanceof Date) return (av-bv)*dir;
+        if (typeof av === "number" && typeof bv === "number") return (av-bv)*dir;
+        return String(av).localeCompare(String(bv))*dir;
+      });
+    }
+
+    var ps = STATE.pageSize;
+    var pages = Math.max(1, Math.ceil(sorted.length/ps));
+    if (STATE.page > pages) STATE.page = pages;
+    var start = (STATE.page-1)*ps;
+    var slice = sorted.slice(start, start+ps);
+
+    var body = $("dataBody"); body.innerHTML = "";
+    if (!slice.length){ var tr = el("tr"); tr.innerHTML = '<td colspan="'+cols.length+'" class="empty">No rows match the current filters.</td>'; body.appendChild(tr); }
+    slice.forEach(function(r){
+      var tr = el("tr");
+      cols.forEach(function(c){
+        var v = r[c.name]; var td = el("td", c.type==="number"?"num":"");
+        if (c.type === "date" && v instanceof Date) td.textContent = v.toISOString().slice(0,10);
+        else if (c.type === "number" && typeof v === "number") td.textContent = fmtNum(v, 2);
+        else td.textContent = v == null ? "" : String(v);
+        tr.appendChild(td);
+      });
+      body.appendChild(tr);
+    });
+
+    // pager
+    var pg = $("dataPager"); pg.innerHTML = "";
+    var info = el("span","pg-info"); info.textContent = (sorted.length? (start+1)+"–"+Math.min(start+ps, sorted.length) : "0") + " of " + sorted.length; pg.appendChild(info);
+    var prev = el("button"); prev.textContent = "‹ Prev"; prev.disabled = STATE.page<=1;
+    prev.addEventListener("click", function(){ STATE.page--; renderTable(filteredRows()); });
+    pg.appendChild(prev);
+    var maxBtns = 7; var from = Math.max(1, STATE.page-3), to = Math.min(pages, from+maxBtns-1); from = Math.max(1, to-maxBtns+1);
+    for (var i=from;i<=to;i++){ (function(i){ var b=el("button"); b.textContent=i; if(i===STATE.page)b.classList.add("active"); b.addEventListener("click",function(){STATE.page=i;renderTable(filteredRows());}); pg.appendChild(b); })(i); }
+    var next = el("button"); next.textContent = "Next ›"; next.disabled = STATE.page>=pages;
+    next.addEventListener("click", function(){ STATE.page++; renderTable(filteredRows()); });
+    pg.appendChild(next);
+  }
+
+  // ---- file handling ---------------------------------------
+  function handleFile(file){
+    if (!file) return;
+    var reader = new FileReader();
+    reader.onload = function(e){
+      try {
+        var parsed = parseCSV(e.target.result);
+        if (!parsed.headers.length || !parsed.rows.length){ alert("Could not parse CSV — the file looks empty."); return; }
+        loadData(parsed.headers, parsed.rows, file.name);
+      } catch(err){ alert("Failed to read CSV: " + err.message); }
+    };
+    reader.onerror = function(){ alert("Could not read the file."); };
+    reader.readAsText(file);
+  }
+
+  // ---- sample data -----------------------------------------
+  function loadSample(){
+    var parsed = parseCSV(SAMPLE_CSV);
+    loadData(parsed.headers, parsed.rows, "sample_superstore.csv");
+  }
+
+  // ---- wire up ---------------------------------------------
+  function wire(){
+    var fi = $("fileInput"), zone = $("uploadZone");
+    $("uploadBtn").addEventListener("click", function(){ fi.click(); });
+    $("browseBtn").addEventListener("click", function(){ fi.click(); });
+    fi.addEventListener("change", function(){ if (fi.files[0]) handleFile(fi.files[0]); });
+    $("loadSampleBtn").addEventListener("click", loadSample);
+    $("loadSampleBtn2").addEventListener("click", loadSample);
+
+    zone.addEventListener("click", function(e){
+      if (e.target.tagName === "BUTTON") return;
+      fi.click();
+    });
+    zone.addEventListener("dragover", function(e){ e.preventDefault(); zone.classList.add("drag"); });
+    zone.addEventListener("dragleave", function(){ zone.classList.remove("drag"); });
+    zone.addEventListener("drop", function(e){
+      e.preventDefault(); zone.classList.remove("drag");
+      if (e.dataTransfer.files && e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]);
+    });
+
+    $("exportBtn").addEventListener("click", function(){
+      var rows = filteredRows(); if (!rows.length) return;
+      var cols = STATE.columns;
+      var lines = [cols.map(function(c){return '"'+c.name.replace(/"/g,'""')+'"';}).join(",")];
+      rows.forEach(function(r){
+        lines.push(cols.map(function(c){ var v = r.__raw[c.name]; v = v==null?"":String(v); return '"'+v.replace(/"/g,'""')+'"'; }).join(","));
+      });
+      var blob = new Blob([lines.join("\n")], {type:"text/csv;charset=utf-8"});
+      var url = URL.createObjectURL(blob); var a = el("a"); a.href = url; a.download = "filtered_" + (STATE.fileName||"data.csv"); document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
+    });
+
+    ["trendDate","trendVal","trendSplit","donutCol","barCol","barVal","histCol","scatX","scatY","scatC"].forEach(function(id){
+      $(id).addEventListener("change", function(){ var rows = filteredRows();
+        if (id==="trendDate"||id==="trendVal"||id==="trendSplit") renderTrend(rows);
+        if (id==="donutCol") renderDonut(rows);
+        if (id==="barCol"||id==="barVal") renderBars(rows);
+        if (id==="histCol") renderHist(rows);
+        if (id==="scatX"||id==="scatY"||id==="scatC") renderScat(rows);
+      });
+    });
+
+    $("dataSearch").addEventListener("input", function(){ STATE.search = this.value; STATE.page=1; renderAll(); });
+    $("pageSize").addEventListener("change", function(){ STATE.pageSize = parseInt(this.value,10); STATE.page=1; renderTable(filteredRows()); });
+
+    window.addEventListener("resize", debounce(function(){ if (!STATE.rows.length) return; renderAll(); }, 200));
+  }
+  function debounce(fn, ms){ var t; return function(){ clearTimeout(t); var a=arguments,ctx=this; t=setTimeout(function(){fn.apply(ctx,a);},ms); }; }
+
+  wire();
+})();
+</script>
+</body>
+</html>
